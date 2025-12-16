@@ -9,105 +9,55 @@ body {
   background:#111;
   color:#0f0;
   font-family: monospace;
-  margin:0;
   padding:10px;
 }
-.player {
-  border:2px solid #0f0;
-  padding:10px;
-}
-.title {
-  text-align:center;
-  margin-bottom:5px;
-}
-.controls button {
-  background:#000;
-  color:#0f0;
-  border:1px solid #0f0;
-  padding:5px;
-  margin:2px;
-}
-.progress {
-  width:100%;
-}
-ul {
-  list-style:none;
-  padding:0;
-  margin-top:10px;
-  max-height:200px;
-  overflow:auto;
-}
+h3 { text-align:center; }
 li {
-  padding:5px;
-  border-bottom:1px solid #333;
   cursor:pointer;
+  padding:6px;
+  border-bottom:1px solid #333;
 }
 li:hover { background:#222; }
 .active { background:#0f0; color:#000; }
+audio { width:100%; margin-top:10px; }
 </style>
 </head>
 <body>
 
-<div class="player">
-  <div class="title" id="title">STOPPED</div>
+<h3>MP3 Player</h3>
 
-  <audio id="audio"></audio>
-
-  <div class="controls">
-    <button onclick="prev()">⏮</button>
-    <button onclick="play()">▶</button>
-    <button onclick="pause()">⏸</button>
-    <button onclick="next()">⏭</button>
-  </div>
-
-  <input type="range" id="seek" class="progress" value="0">
-</div>
-
-<ul id="playlist"></ul>
+<audio id="player" controls autoplay></audio>
+<ul id="list"></ul>
 
 <script>
-const base = "https://cdn.jsdelivr.net/gh/punyaaris1-lang/music/mp3/";
-const songs = [
-  "SO7-saat-aku-lanjut-usia.mp3",
-  "lagu2.mp3"
-];
+const user = "punyaaris1-lang";
+const repo = "music";
+const folder = "mp3";
 
-let index = 0;
-const audio = document.getElementById('audio');
-const title = document.getElementById('title');
-const seek = document.getElementById('seek');
-const list = document.getElementById('playlist');
+const list = document.getElementById("list");
+const player = document.getElementById("player");
 
-songs.forEach((s,i)=>{
-  const li = document.createElement('li');
-  li.textContent = s;
-  li.onclick = ()=>load(i,true);
-  list.appendChild(li);
+fetch(`https://api.github.com/repos/${user}/${repo}/contents/${folder}`)
+.then(r => r.json())
+.then(files => {
+  const mp3 = files.filter(f => f.name.endsWith(".mp3"));
+
+  mp3.forEach((f, i) => {
+    const li = document.createElement("li");
+    li.textContent = f.name;
+    li.onclick = () => play(f.name, li);
+    list.appendChild(li);
+
+    if (i === 0) play(f.name, li); // auto play lagu pertama
+  });
 });
 
-function load(i,autoplay=false){
-  index=i;
-  audio.src = base + songs[i];
-  title.textContent = songs[i];
-  [...list.children].forEach(l=>l.classList.remove('active'));
-  list.children[i].classList.add('active');
-  if(autoplay) audio.play();
+function play(name, el) {
+  [...list.children].forEach(l => l.classList.remove("active"));
+  el.classList.add("active");
+  player.src = `https://cdn.jsdelivr.net/gh/${user}/${repo}@main/${folder}/${name}`;
+  player.play();
 }
-
-function play(){ audio.play(); }
-function pause(){ audio.pause(); }
-function next(){ load((index+1)%songs.length,true); }
-function prev(){ load((index-1+songs.length)%songs.length,true); }
-
-audio.ontimeupdate = ()=>{
-  seek.value = (audio.currentTime / audio.duration) * 100 || 0;
-};
-
-seek.oninput = ()=>{
-  audio.currentTime = (seek.value/100)*audio.duration;
-};
-
-load(0);
 </script>
 
 </body>
