@@ -1,33 +1,181 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>MP3 Player</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body {
-  background:#111;
-  color:#0f0;
-  font-family: monospace;
-  padding:10px;
-}
-h3 { text-align:center; }
-li {
-  cursor:pointer;
-  padding:6px;
-  border-bottom:1px solid #333;
-}
-li:hover { background:#222; }
-.active { background:#0f0; color:#000; }
-audio { width:100%; margin-top:10px; }
-</style>
+    <meta charset="UTF-8">
+    <title>Winamp Classic - MLU Music</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=Syne:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        /* TEMA WINAMP KLASIK NEON (DISESUAIKAN DARI TEMA ANTRIAN) */
+        :root {
+            --accent: #CCFF00; /* Neon Yellow/Green */
+            --bg-dark: #121212; /* Background gelap utama */
+            --bg-winamp: #333333; /* Warna abu-abu Winamp */
+            --border-winamp: #555555; /* Border luar Winamp */
+            --text-neon: var(--accent);
+            --text-main: #ffffff;
+            --soft-red: #FF3B30;
+            --cyan: #00d2ff;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .winamp-container {
+            width: 100%;
+            max-width: 350px; /* Ukuran khas Winamp */
+            background: var(--bg-winamp);
+            border: 2px solid var(--border-winamp);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            border-radius: 5px;
+            padding: 5px;
+        }
+
+        /* --- HEADER/TITLE BAR (Mirip Display Winamp) --- */
+        .title-bar {
+            font-family: 'Syne', sans-serif;
+            font-weight: 900;
+            font-size: 14px;
+            background: var(--bg-dark);
+            color: var(--text-neon);
+            padding: 8px 10px;
+            border-bottom: 2px solid var(--border-winamp);
+            box-shadow: 0 0 8px rgba(204, 255, 0, 0.3);
+            margin-bottom: 5px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        /* --- DISPLAY TRACK (Warna Winamp asli) --- */
+        .display-area {
+            background: #000;
+            color: var(--text-neon);
+            font-family: monospace;
+            font-size: 14px;
+            padding: 10px;
+            border: 1px solid #111;
+            margin-bottom: 10px;
+            min-height: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: inset 0 0 5px rgba(204, 255, 0, 0.2);
+        }
+        
+        .display-area span { font-weight: 700; }
+        .display-area .time { color: var(--cyan); }
+        .display-area .track-info { flex-grow: 1; text-align: left; margin-left: 10px; }
+
+        /* --- KONTROL (Mengganti default audio control) --- */
+        #player { display: none; } /* Sembunyikan kontrol default */
+        
+        .custom-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .control-btn {
+            background: var(--bg-dark);
+            color: var(--text-neon);
+            border: 1px solid var(--border-winamp);
+            padding: 8px 15px;
+            font-family: 'Syne', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            box-shadow: 0 0 5px rgba(204, 255, 0, 0.2);
+        }
+        .control-btn:hover {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        /* --- PLAYLIST --- */
+        .playlist-title {
+            font-size: 10px;
+            color: var(--cyan);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            border-bottom: 1px dashed var(--cyan);
+            padding-bottom: 3px;
+        }
+
+        #list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #222;
+            background: #282828;
+            border-radius: 4px;
+        }
+
+        li {
+            cursor: pointer;
+            padding: 6px 10px;
+            border-bottom: 1px solid #383838;
+            font-size: 12px;
+            color: #ddd;
+            transition: background 0.1s;
+        }
+
+        li:last-child { border-bottom: none; }
+        
+        li:hover { background: #444; }
+
+        .active {
+            background: var(--accent);
+            color: #000;
+            font-weight: 700;
+            box-shadow: 0 0 5px rgba(204, 255, 0, 0.5);
+            padding-left: 15px; /* Indent untuk kesan aktif */
+        }
+    </style>
 </head>
 <body>
 
-<h3>MP3 Player</h3>
+<div class="winamp-container">
+    <div class="title-bar">FC KELAPA GADING - MLU MP3 Player</div>
 
-<audio id="player" controls autoplay></audio>
-<ul id="list"></ul>
+    <div class="display-area">
+        <span class="time" id="currentTimeDisplay">0:00</span>
+        <span class="track-info" id="trackInfoDisplay">LOADING...</span>
+        <span class="time" id="totalTimeDisplay">0:00</span>
+    </div>
+
+    <div class="custom-controls">
+        <button class="control-btn" id="prevBtn">PREV</button>
+        <button class="control-btn" id="playPauseBtn">PLAY</button>
+        <button class="control-btn" id="nextBtn">NEXT</button>
+        <button class="control-btn" id="stopBtn">STOP</button>
+    </div>
+
+    <div class="playlist-title">PLAYLIST</div>
+    
+    <audio id="player"></audio>
+    <ul id="list"></ul>
+
+    <a href="antrian.html" class="control-btn" style="display: block; text-align: center; margin-top: 15px; background: var(--cyan); color: #000;">
+        🏠 KEMBALI KE ANTRIAN
+    </a>
+</div>
 
 <script>
 const user = "punyaaris1-lang";
@@ -36,28 +184,133 @@ const folder = "mp3";
 
 const list = document.getElementById("list");
 const player = document.getElementById("player");
+const trackInfoDisplay = document.getElementById("trackInfoDisplay");
+const currentTimeDisplay = document.getElementById("currentTimeDisplay");
+const totalTimeDisplay = document.getElementById("totalTimeDisplay");
+const playPauseBtn = document.getElementById("playPauseBtn");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const stopBtn = document.getElementById("stopBtn");
 
+let currentTrackIndex = -1;
+let mp3Files = [];
+
+// Fungsi untuk memformat waktu (detik ke M:SS)
+function formatTime(seconds) {
+    if (isNaN(seconds)) return "0:00";
+    const min = Math.floor(seconds / 60);
+    const sec = Math.floor(seconds % 60);
+    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+}
+
+// FUNGSI AUTO PLAY BERIKUTNYA
+player.addEventListener('ended', () => {
+    // Panggil fungsi untuk memainkan lagu berikutnya
+    playNext();
+});
+
+// Update display waktu saat lagu dimainkan
+player.addEventListener('timeupdate', () => {
+    currentTimeDisplay.textContent = formatTime(player.currentTime);
+});
+
+// Tampilkan durasi total setelah metadata dimuat
+player.addEventListener('loadedmetadata', () => {
+    totalTimeDisplay.textContent = formatTime(player.duration);
+});
+
+// Mengambil Daftar File dari GitHub
 fetch(`https://api.github.com/repos/${user}/${repo}/contents/${folder}`)
 .then(r => r.json())
 .then(files => {
-  const mp3 = files.filter(f => f.name.endsWith(".mp3"));
+  mp3Files = files.filter(f => f.name.endsWith(".mp3"));
 
-  mp3.forEach((f, i) => {
+  mp3Files.forEach((f, i) => {
     const li = document.createElement("li");
-    li.textContent = f.name;
-    li.onclick = () => play(f.name, li);
+    // Menghapus ekstensi .mp3 untuk tampilan yang lebih bersih
+    li.textContent = `${i + 1}. ${f.name.replace('.mp3', '').replace(/_/g, ' ')}`;
+    li.dataset.index = i; // Simpan index di dataset
+    li.onclick = () => playTrack(i, li);
     list.appendChild(li);
-
-    if (i === 0) play(f.name, li); // auto play lagu pertama
   });
+
+  if (mp3Files.length > 0) {
+    playTrack(0, list.children[0]); // Auto play lagu pertama
+  } else {
+    trackInfoDisplay.textContent = "NO FILES FOUND.";
+  }
+})
+.catch(e => {
+    console.error("Failed to fetch files:", e);
+    trackInfoDisplay.textContent = "ERROR LOADING PLAYLIST.";
 });
 
-function play(name, el) {
+function playTrack(index, el) {
+  if (index < 0 || index >= mp3Files.length) return;
+
+  currentTrackIndex = index;
+
+  // Hapus highlight track sebelumnya
   [...list.children].forEach(l => l.classList.remove("active"));
-  el.classList.add("active");
-  player.src = `https://cdn.jsdelivr.net/gh/${user}/${repo}@main/${folder}/${name}`;
+  
+  // Highlight track baru
+  if (el) el.classList.add("active");
+
+  const track = mp3Files[index];
+  
+  // Update Display
+  trackInfoDisplay.textContent = `[${index + 1}/${mp3Files.length}] ${track.name.replace('.mp3', '').replace(/_/g, ' ')}`;
+  playPauseBtn.textContent = "PAUSE";
+
+  // Set Source dan Putar
+  player.src = `https://cdn.jsdelivr.net/gh/${user}/${repo}@main/${folder}/${track.name}`;
   player.play();
 }
+
+function playNext() {
+    if (mp3Files.length === 0) return;
+    const nextIndex = (currentTrackIndex + 1) % mp3Files.length; // Loop ke lagu pertama
+    playTrack(nextIndex, list.children[nextIndex]);
+}
+
+function playPrev() {
+    if (mp3Files.length === 0) return;
+    let prevIndex = currentTrackIndex - 1;
+    if (prevIndex < 0) {
+        prevIndex = mp3Files.length - 1; // Loop ke lagu terakhir
+    }
+    playTrack(prevIndex, list.children[prevIndex]);
+}
+
+// --- KONTROL EVENT LISTENERS ---
+playPauseBtn.addEventListener('click', () => {
+    if (player.paused) {
+        player.play();
+        playPauseBtn.textContent = "PAUSE";
+    } else {
+        player.pause();
+        playPauseBtn.textContent = "PLAY";
+    }
+});
+
+stopBtn.addEventListener('click', () => {
+    player.pause();
+    player.currentTime = 0;
+    playPauseBtn.textContent = "PLAY";
+});
+
+nextBtn.addEventListener('click', playNext);
+prevBtn.addEventListener('click', playPrev);
+
+// Logika untuk menampilkan status awal tombol PLAY/PAUSE
+player.addEventListener('play', () => {
+    playPauseBtn.textContent = "PAUSE";
+});
+player.addEventListener('pause', () => {
+    if (player.currentTime > 0) {
+        playPauseBtn.textContent = "PLAY";
+    }
+});
 </script>
 
 </body>
