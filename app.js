@@ -3,13 +3,15 @@ const playlistEl = document.getElementById("playlist");
 const canvas = document.getElementById("visualizer");
 const ctx = canvas.getContext("2d");
 
-const CACHE_NAME = "mlu-mp3-cache-v1";
-
 let songs = [];
 let current = -1;
 let bars = new Array(24).fill(0);
-let currentObjectUrl = null;
-let isLoading = false;
+let readyToPlay = false;
+
+/* ================= SETUP AUDIO ================= */
+
+audio.preload = "auto";
+audio.crossOrigin = "anonymous";
 
 /* ================= LOAD PLAYLIST ================= */
 
@@ -26,12 +28,6 @@ function nameFromUrl(url) {
   return decodeURIComponent(url.split("/").pop().replace(".mp3", ""));
 }
 
-function updateActiveSong() {
-  [...playlistEl.children].forEach((li, i) => {
-    li.classList.toggle("active", i === current);
-  });
-}
-
 function renderList() {
   playlistEl.innerHTML = "";
   songs.forEach((s, i) => {
@@ -40,48 +36,32 @@ function renderList() {
     li.onclick = () => play(i);
     playlistEl.appendChild(li);
   });
-  updateActiveSong();
 }
 
-/* ================= CORE PLAYER (CACHE) ================= */
+function updateActive() {
+  [...playlistEl.children].forEach((li, i) => {
+    li.classList.toggle("active", i === current);
+  });
+}
 
-async function play(i) {
-  if (i < 0 || i >= songs.length || isLoading) return;
+/* ================= PLAYER CORE (AMAN) ================= */
 
-  isLoading = true;
+function play(i) {
+  if (i < 0 || i >= songs.length) return;
+
+  readyToPlay = false;
   current = i;
-  updateActiveSong();
+  updateActive();
 
   audio.pause();
-  audio.currentTime = 0;
+  audio.src = songs[i].url;
+  audio.load();
 
-  if (currentObjectUrl) {
-    URL.revokeObjectURL(currentObjectUrl);
-    currentObjectUrl = null;
-  }
-
-  const url = songs[i].url;
-
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    let response = await cache.match(url);
-
-    if (!response) {
-      // ⬇️ belum ada → download & cache
-      response = await fetch(url, { cache: "no-store" });
-      await cache.put(url, response.clone());
-    }
-
-    const blob = await response.blob();
-    currentObjectUrl = URL.createObjectURL(blob);
-    audio.src = currentObjectUrl;
-
-    await audio.play();
-  } catch (err) {
-    console.error("Gagal play:", err);
-  } finally {
-    isLoading = false;
-  }
+  audio.oncanplaythrough = () => {
+    if (readyToPlay) return;
+    readyToPlay = true;
+    audio.play();
+  };
 }
 
 /* ================= CONTROLS ================= */
@@ -100,33 +80,30 @@ function stopAudio() {
 }
 
 function nextSong() {
-  if (songs.length === 0) return;
+  if (!songs.length) return;
   play((current + 1) % songs.length);
 }
 
 function prevSong() {
-  if (songs.length === 0) return;
+  if (!songs.length) return;
 
   if (audio.currentTime > 1) {
     audio.currentTime = 0;
     return;
   }
-
   play((current - 1 + songs.length) % songs.length);
-}
-
-function shuffle() {
-  songs.sort(() => Math.random() - 0.5);
-  current = -1;
-  renderList();
-  play(0);
 }
 
 /* ================= AUTO NEXT ================= */
 
-audio.addEventListener("ended", nextSong);
+audio.addEventListener("ended", () => {
+  // VALIDASI BENERAN HABIS
+  if (audio.duration && audio.currentTime >= audio.duration - 0.5) {
+    nextSong();
+  }
+});
 
-/* ================= VISUALIZER ================= */
+/* ================= VISUALIZER (FAKE, AMAN) ================= */
 
 function drawBars() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -138,7 +115,6 @@ function drawBars() {
     } else {
       bars[i] *= 0.85;
     }
-
     ctx.fillStyle = "#ccff00";
     ctx.fillRect(i * w, canvas.height - bars[i], w - 2, bars[i]);
   }
