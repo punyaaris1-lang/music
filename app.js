@@ -1,29 +1,13 @@
 const audio = document.getElementById("audio");
-audio.crossOrigin = "anonymous";
-
+const playlistEl = document.getElementById("playlist");
 const canvas = document.getElementById("visualizer");
 const ctx = canvas.getContext("2d");
 
-const playlistEl = document.getElementById("playlist");
-
 let songs = [];
 let current = -1;
+let bars = new Array(24).fill(0);
 
-/* === AUDIO CONTEXT === */
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-const audioCtx = new AudioContext();
-
-const source = audioCtx.createMediaElementSource(audio);
-const analyser = audioCtx.createAnalyser();
-analyser.fftSize = 64;
-
-source.connect(analyser);
-analyser.connect(audioCtx.destination);
-
-const bufferLength = analyser.frequencyBinCount;
-const dataArray = new Uint8Array(bufferLength);
-
-/* === LOAD PLAYLIST === */
+/* LOAD PLAYLIST */
 fetch("playlist.json")
   .then(r => r.json())
   .then(data => {
@@ -31,7 +15,7 @@ fetch("playlist.json")
     renderList();
   });
 
-function getName(url) {
+function nameFromUrl(url) {
   return decodeURIComponent(url.split("/").pop().replace(".mp3", ""));
 }
 
@@ -39,13 +23,13 @@ function renderList() {
   playlistEl.innerHTML = "";
   songs.forEach((s, i) => {
     const li = document.createElement("li");
-    li.textContent = getName(s.url);
+    li.textContent = nameFromUrl(s.url);
     li.onclick = () => play(i);
     playlistEl.appendChild(li);
   });
 }
 
-/* === PLAY === */
+/* PLAYER */
 function play(i) {
   current = i;
   audio.src = songs[i].url;
@@ -70,32 +54,25 @@ function shuffle() {
   renderList();
 }
 
-/* === USER GESTURE FIX (WAJIB IFRAME) === */
-document.addEventListener("click", () => {
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume();
-  }
-}, { once: true });
-
-/* === VISUALIZER === */
-function draw() {
-  requestAnimationFrame(draw);
-  analyser.getByteFrequencyData(dataArray);
-
+/* FAKE WINAMP VISUALIZER */
+function drawBars() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const w = canvas.width / bars.length;
 
-  const barWidth = canvas.width / bufferLength;
-
-  for (let i = 0; i < bufferLength; i++) {
-    const barHeight = dataArray[i] / 2;
+  for (let i = 0; i < bars.length; i++) {
+    if (!audio.paused) {
+      bars[i] = Math.random() * canvas.height;
+    } else {
+      bars[i] *= 0.9;
+    }
     ctx.fillStyle = "#ccff00";
-    ctx.fillRect(
-      i * barWidth,
-      canvas.height - barHeight,
-      barWidth - 2,
-      barHeight
-    );
+    ctx.fillRect(i * w, canvas.height - bars[i], w - 2, bars[i]);
   }
+  requestAnimationFrame(drawBars);
 }
+drawBars();
 
-draw();
+/* MOBILE + IFRAME UNLOCK */
+document.addEventListener("click", () => {
+  audio.play().then(() => audio.pause()).catch(()=>{});
+}, { once: true });
