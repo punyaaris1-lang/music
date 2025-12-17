@@ -4,28 +4,31 @@ const canvas = document.getElementById("visualizer");
 const ctx = canvas.getContext("2d");
 
 let songs = [];
-let current = -1;
+let current = -1; // -1 berarti belum ada lagu yang diputar
 let bars = new Array(24).fill(0);
-let readyToPlay = false;
+let drawInterval; // Variabel untuk mengontrol kecepatan visualizer
 
-/* ================= SETUP AUDIO ================= */
-
-audio.preload = "auto";
-audio.crossOrigin = "anonymous";
-
-/* ================= LOAD PLAYLIST ================= */
+/* --- UTILITIES & LOAD PLAYLIST --- */
 
 fetch("playlist.json")
   .then(r => r.json())
   .then(data => {
     songs = data;
     renderList();
+    // Tambahkan event listener untuk memutar lagu berikutnya secara otomatis saat lagu selesai
+    audio.addEventListener('ended', nextSong); 
   });
 
-/* ================= HELPERS ================= */
-
 function nameFromUrl(url) {
+  // Fungsi yang mengambil nama lagu dari URL file MP3
   return decodeURIComponent(url.split("/").pop().replace(".mp3", ""));
+}
+
+function updateActiveSong() {
+  // Tandai lagu yang sedang aktif dengan class 'active'
+  [...playlistEl.children].forEach((li, i) => {
+    li.classList.toggle('active', i === current);
+  });
 }
 
 function renderList() {
@@ -36,35 +39,19 @@ function renderList() {
     li.onclick = () => play(i);
     playlistEl.appendChild(li);
   });
+  updateActiveSong();
 }
 
-function updateActive() {
-  [...playlistEl.children].forEach((li, i) => {
-    li.classList.toggle("active", i === current);
-  });
-}
-
-/* ================= PLAYER CORE (AMAN) ================= */
+/* --- PLAYER CONTROLS --- */
 
 function play(i) {
   if (i < 0 || i >= songs.length) return;
-
-  readyToPlay = false;
+  
   current = i;
-  updateActive();
-
-  audio.pause();
   audio.src = songs[i].url;
-  audio.load();
-
-  audio.oncanplaythrough = () => {
-    if (readyToPlay) return;
-    readyToPlay = true;
-    audio.play();
-  };
+  audio.play();
+  updateActiveSong();
 }
-
-/* ================= CONTROLS ================= */
 
 function togglePlay() {
   if (current === -1) {
@@ -80,44 +67,53 @@ function stopAudio() {
 }
 
 function nextSong() {
-  if (!songs.length) return;
-  play((current + 1) % songs.length);
+  if (songs.length === 0) return;
+  const nextIndex = (current + 1) % songs.length; // Loop ke awal
+  play(nextIndex);
 }
 
 function prevSong() {
-  if (!songs.length) return;
-
-  if (audio.currentTime > 1) {
+  if (songs.length === 0) return;
+  // Jika lagu sudah berjalan lebih dari 1 detik, mulai ulang lagu saat ini
+  if (audio.currentTime > 1) { 
     audio.currentTime = 0;
     return;
   }
-  play((current - 1 + songs.length) % songs.length);
+  // Jika tidak, putar lagu sebelumnya (Loop ke akhir jika current = 0)
+  const prevIndex = (current - 1 + songs.length) % songs.length;
+  play(prevIndex);
 }
 
-/* ================= AUTO NEXT ================= */
+function shuffle() {
+  songs.sort(() => Math.random() - 0.5);
+  current = -1; // Reset current karena index berubah
+  renderList();
+  play(0);
+}
 
-audio.addEventListener("ended", () => {
-  // VALIDASI BENERAN HABIS
-  if (audio.duration && audio.currentTime >= audio.duration - 0.5) {
-    nextSong();
-  }
-});
-
-/* ================= VISUALIZER (FAKE, AMAN) ================= */
-
+/* --- VISUALIZER (Diperbaiki agar tidak terlalu cepat) --- */
 function drawBars() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const w = canvas.width / bars.length;
 
   for (let i = 0; i < bars.length; i++) {
     if (!audio.paused) {
+      // Menggunakan nilai acak yang diperbarui pada interval yang lebih lambat
       bars[i] = Math.random() * canvas.height;
     } else {
-      bars[i] *= 0.85;
+      // Biarkan bar turun perlahan saat di-pause
+      bars[i] *= 0.85; 
     }
     ctx.fillStyle = "#ccff00";
     ctx.fillRect(i * w, canvas.height - bars[i], w - 2, bars[i]);
   }
 }
+// Panggil visualizer setiap 100 milidetik (10 kali per detik)
+drawInterval = setInterval(drawBars, 100); 
 
-setInterval(drawBars, 100);
+
+/* --- MOBILE UNLOCK FIX (PENTING: Mencegah lagu berhenti setelah klik pertama) --- */
+document.addEventListener("click", () => {
+  // Kode perbaikan: Hanya panggil play() untuk mendapatkan izin browser, TIDAK pause.
+  audio.play().catch(()=>{});
+}, { once: true });
