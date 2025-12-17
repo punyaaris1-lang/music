@@ -1,100 +1,83 @@
-const audio = document.getElementById('audio');
-const playlistEl = document.getElementById('playlist');
-const progress = document.getElementById('progress');
-const trackName = document.getElementById('trackName');
+const audio = document.getElementById("audio");
+audio.crossOrigin = "anonymous";
 
-const playBtn = document.getElementById('playBtn');
-const stopBtn = document.getElementById('stopBtn');
-const shuffleBtn = document.getElementById('shuffleBtn');
+const canvas = document.getElementById("visualizer");
+const ctx = canvas.getContext("2d");
 
-const canvas = document.getElementById('visualizer');
-const ctx = canvas.getContext('2d');
-
-canvas.width = 320;
-canvas.height = 40;
+const playlistEl = document.getElementById("playlist");
 
 let songs = [];
 let current = -1;
 
-/* ===== LOAD PLAYLIST ===== */
-fetch('playlist.json')
+/* === AUDIO CONTEXT === */
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+const source = audioCtx.createMediaElementSource(audio);
+const analyser = audioCtx.createAnalyser();
+analyser.fftSize = 64;
+
+source.connect(analyser);
+analyser.connect(audioCtx.destination);
+
+const bufferLength = analyser.frequencyBinCount;
+const dataArray = new Uint8Array(bufferLength);
+
+/* === LOAD PLAYLIST === */
+fetch("playlist.json")
   .then(r => r.json())
   .then(data => {
     songs = data;
-    render();
+    renderList();
   });
 
-/* ===== AUTO TITLE FROM URL ===== */
 function getName(url) {
-  return decodeURIComponent(url.split('/').pop().replace('.mp3',''));
+  return decodeURIComponent(url.split("/").pop().replace(".mp3", ""));
 }
 
-/* ===== RENDER ===== */
-function render() {
-  playlistEl.innerHTML = '';
-  songs.forEach((song, i) => {
-    const li = document.createElement('li');
-    li.textContent = getName(song.url);
-    if (i === current) li.classList.add('active');
+function renderList() {
+  playlistEl.innerHTML = "";
+  songs.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.textContent = getName(s.url);
     li.onclick = () => play(i);
     playlistEl.appendChild(li);
   });
 }
 
-/* ===== PLAYER ===== */
+/* === PLAY === */
 function play(i) {
   current = i;
   audio.src = songs[i].url;
   audio.play();
-  trackName.textContent = getName(songs[i].url);
-  render();
 }
 
 function togglePlay() {
+  if (current === -1) {
+    play(0);
+    return;
+  }
   audio.paused ? audio.play() : audio.pause();
 }
 
-function stop() {
+function stopAudio() {
   audio.pause();
   audio.currentTime = 0;
 }
 
 function shuffle() {
   songs.sort(() => Math.random() - 0.5);
-  current = -1;
-  render();
+  renderList();
 }
 
-/* ===== BUTTONS ===== */
-playBtn.onclick = togglePlay;
-stopBtn.onclick = stop;
-shuffleBtn.onclick = shuffle;
-
-/* ===== PROGRESS ===== */
-audio.ontimeupdate = () => {
-  if (audio.duration) {
-    progress.value = (audio.currentTime / audio.duration) * 100;
+/* === USER GESTURE FIX (WAJIB IFRAME) === */
+document.addEventListener("click", () => {
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
   }
-};
+}, { once: true });
 
-progress.oninput = () => {
-  if (audio.duration) {
-    audio.currentTime = (progress.value / 100) * audio.duration;
-  }
-};
-
-/* ===== WINAMP VISUALIZER ===== */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-const analyser = audioCtx.createAnalyser();
-const source = audioCtx.createMediaElementSource(audio);
-
-source.connect(analyser);
-analyser.connect(audioCtx.destination);
-
-analyser.fftSize = 64;
-const bufferLength = analyser.frequencyBinCount;
-const dataArray = new Uint8Array(bufferLength);
-
+/* === VISUALIZER === */
 function draw() {
   requestAnimationFrame(draw);
   analyser.getByteFrequencyData(dataArray);
@@ -103,19 +86,16 @@ function draw() {
 
   const barWidth = canvas.width / bufferLength;
 
-  dataArray.forEach((v, i) => {
-    const barHeight = v / 3;
-    ctx.fillStyle = '#CCFF00';
+  for (let i = 0; i < bufferLength; i++) {
+    const barHeight = dataArray[i] / 2;
+    ctx.fillStyle = "#ccff00";
     ctx.fillRect(
       i * barWidth,
       canvas.height - barHeight,
-      barWidth - 1,
+      barWidth - 2,
       barHeight
     );
-  });
+  }
 }
 
-audio.onplay = () => {
-  audioCtx.resume();
-  draw();
-};
+draw();
