@@ -4,17 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MLU-Player</title>
-
-<link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+
 <div class="winamp">
   <div class="header">MLU-Player</div>
-
-  <input type="file" id="fileInput" multiple accept="audio/mp3">
-  <input type="text" id="search" placeholder="Cari lagu...">
 
   <ul id="playlist"></ul>
 
@@ -22,7 +17,6 @@
     <button onclick="prev()">⏮</button>
     <button onclick="togglePlay()">▶ / ⏸</button>
     <button onclick="next()">⏭</button>
-    <button onclick="shuffle()">🔀</button>
   </div>
 
   <input type="range" id="progress" value="0">
@@ -32,11 +26,5 @@
 
 <script src="db.js"></script>
 <script src="app.js"></script>
-
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
-</script>
 </body>
 </html>
