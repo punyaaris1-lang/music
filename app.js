@@ -3,12 +3,16 @@ const playlistEl = document.getElementById("playlist");
 const canvas = document.getElementById("visualizer");
 const ctx = canvas.getContext("2d");
 
+const CACHE_NAME = "mlu-mp3-cache-v1";
+
 let songs = [];
 let current = -1;
 let bars = new Array(24).fill(0);
-let drawInterval;
+let currentObjectUrl = null;
+let isLoading = false;
 
-/* --- LOAD PLAYLIST --- */
+/* ================= LOAD PLAYLIST ================= */
+
 fetch("playlist.json")
   .then(r => r.json())
   .then(data => {
@@ -16,7 +20,8 @@ fetch("playlist.json")
     renderList();
   });
 
-/* --- HELPERS --- */
+/* ================= HELPERS ================= */
+
 function nameFromUrl(url) {
   return decodeURIComponent(url.split("/").pop().replace(".mp3", ""));
 }
@@ -38,19 +43,48 @@ function renderList() {
   updateActiveSong();
 }
 
-/* --- PLAYER CORE (FIXED) --- */
-function play(i) {
-  if (i < 0 || i >= songs.length) return;
+/* ================= CORE PLAYER (CACHE) ================= */
 
+async function play(i) {
+  if (i < 0 || i >= songs.length || isLoading) return;
+
+  isLoading = true;
   current = i;
+  updateActiveSong();
 
   audio.pause();
-  audio.src = songs[i].url + "?download=1"; // 🔥 FIX STREAM PUTUS
-  audio.load();                              // 🔥 WAJIB
-  audio.play().catch(() => {});
+  audio.currentTime = 0;
 
-  updateActiveSong();
+  if (currentObjectUrl) {
+    URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = null;
+  }
+
+  const url = songs[i].url;
+
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    let response = await cache.match(url);
+
+    if (!response) {
+      // ⬇️ belum ada → download & cache
+      response = await fetch(url, { cache: "no-store" });
+      await cache.put(url, response.clone());
+    }
+
+    const blob = await response.blob();
+    currentObjectUrl = URL.createObjectURL(blob);
+    audio.src = currentObjectUrl;
+
+    await audio.play();
+  } catch (err) {
+    console.error("Gagal play:", err);
+  } finally {
+    isLoading = false;
+  }
 }
+
+/* ================= CONTROLS ================= */
 
 function togglePlay() {
   if (current === -1) {
@@ -67,8 +101,7 @@ function stopAudio() {
 
 function nextSong() {
   if (songs.length === 0) return;
-  const nextIndex = (current + 1) % songs.length;
-  play(nextIndex);
+  play((current + 1) % songs.length);
 }
 
 function prevSong() {
@@ -79,8 +112,7 @@ function prevSong() {
     return;
   }
 
-  const prevIndex = (current - 1 + songs.length) % songs.length;
-  play(prevIndex);
+  play((current - 1 + songs.length) % songs.length);
 }
 
 function shuffle() {
@@ -90,14 +122,12 @@ function shuffle() {
   play(0);
 }
 
-/* --- AUTO NEXT (ANTI BUG ARCHIVE) --- */
-audio.addEventListener("ended", () => {
-  if (!isNaN(audio.duration) && audio.duration > 10) {
-    nextSong();
-  }
-});
+/* ================= AUTO NEXT ================= */
 
-/* --- VISUALIZER --- */
+audio.addEventListener("ended", nextSong);
+
+/* ================= VISUALIZER ================= */
+
 function drawBars() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const w = canvas.width / bars.length;
@@ -114,15 +144,4 @@ function drawBars() {
   }
 }
 
-drawInterval = setInterval(drawBars, 100);
-
-/* --- MOBILE UNLOCK FIX (AMAN) --- */
-document.addEventListener(
-  "click",
-  () => {
-    if (current !== -1) {
-      audio.play().catch(() => {});
-    }
-  },
-  { once: true }
-);
+setInterval(drawBars, 100);
