@@ -14,22 +14,15 @@
   <canvas id="visualizer" width="300" height="60"></canvas>
 
   <div class="controls">
-    <button onclick="prevSong()">⏮</button>
-    <button onclick="togglePlay()">▶ / ⏸</button>
-    <button onclick="nextSong()">⏭</button>
-    <button onclick="stopAudio()">⏹</button>
+    <button onclick="prevSong()">⏮</button>  <button onclick="togglePlay()">▶ / ⏸</button>
+    <button onclick="nextSong()">⏭</button>  <button onclick="stopAudio()">⏹</button>
     <button onclick="shuffle()">🔀</button>
   </div>
 
   <ul id="playlist"></ul>
 </div>
 
-<!-- 🔥 AUDIO FIX -->
-<audio
-  id="audio"
-  controls
-  preload="auto">
-</audio>
+<audio id="audio" preload="none" crossorigin="anonymous"></audio>
 
 <script src="app.js"></script>
 </body>
