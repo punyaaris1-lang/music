@@ -1,0 +1,45 @@
+body {
+  background:#000;
+  color:#00ff00;
+  font-family: Arial, sans-serif;
+}
+
+.winamp {
+  width:360px;
+  margin:20px auto;
+  border:2px solid #00ff00;
+  padding:10px;
+}
+
+.header {
+  text-align:center;
+  font-weight:bold;
+  margin-bottom:10px;
+}
+
+input, button {
+  width:100%;
+  margin:4px 0;
+}
+
+ul {
+  list-style:none;
+  padding:0;
+  max-height:200px;
+  overflow:auto;
+}
+
+li {
+  padding:4px;
+  cursor:pointer;
+}
+
+li.active {
+  background:#00ff00;
+  color:#000;
+}
+
+.controls {
+  display:flex;
+  gap:5px;
+}
