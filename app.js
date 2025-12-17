@@ -6,6 +6,7 @@ const ctx = canvas.getContext("2d");
 let songs = [];
 let current = -1; // -1 berarti belum ada lagu yang diputar
 let bars = new Array(24).fill(0);
+let drawInterval; // Variabel untuk mengontrol kecepatan visualizer
 
 /* --- UTILITIES & LOAD PLAYLIST --- */
 
@@ -23,7 +24,7 @@ function nameFromUrl(url) {
 }
 
 function updateActiveSong() {
-  // Hapus kelas 'active' dari semua item
+  // Tandai lagu yang sedang aktif dengan class 'active'
   [...playlistEl.children].forEach((li, i) => {
     li.classList.toggle('active', i === current);
   });
@@ -43,17 +44,17 @@ function renderList() {
 /* --- PLAYER CONTROLS --- */
 
 function play(i) {
-  if (i < 0 || i >= songs.length) return; // Batasan agar tidak error
+  if (i < 0 || i >= songs.length) return;
   
   current = i;
   audio.src = songs[i].url;
   audio.play();
-  updateActiveSong(); // Tandai lagu yang sedang diputar
+  updateActiveSong();
 }
 
 function togglePlay() {
   if (current === -1) {
-    play(0); // Putar lagu pertama jika belum ada yang diputar
+    play(0);
     return;
   }
   audio.paused ? audio.play() : audio.pause();
@@ -62,7 +63,6 @@ function togglePlay() {
 function stopAudio() {
   audio.pause();
   audio.currentTime = 0;
-  // Catatan: Biarkan current tetap, hanya hentikan pemutaran
 }
 
 function nextSong() {
@@ -73,42 +73,45 @@ function nextSong() {
 
 function prevSong() {
   if (songs.length === 0) return;
-  // Jika lagu sedang berjalan, kembali ke awal lagu, jika tidak, putar lagu sebelumnya
+  // Jika lagu sudah berjalan lebih dari 1 detik, mulai ulang lagu saat ini
   if (audio.currentTime > 1) { 
     audio.currentTime = 0;
     return;
   }
-  const prevIndex = (current - 1 + songs.length) % songs.length; // Loop ke akhir
+  // Jika tidak, putar lagu sebelumnya (Loop ke akhir jika current = 0)
+  const prevIndex = (current - 1 + songs.length) % songs.length;
   play(prevIndex);
 }
 
 function shuffle() {
   songs.sort(() => Math.random() - 0.5);
-  // Reset current karena indexnya berubah, lalu putar lagu pertama dari playlist baru
-  current = -1; 
+  current = -1; // Reset current karena index berubah
   renderList();
   play(0);
 }
 
-/* --- VISUALIZER --- */
+/* --- VISUALIZER (Diperbaiki agar tidak terlalu cepat) --- */
 function drawBars() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const w = canvas.width / bars.length;
 
   for (let i = 0; i < bars.length; i++) {
     if (!audio.paused) {
+      // Menggunakan nilai acak yang diperbarui pada interval yang lebih lambat
       bars[i] = Math.random() * canvas.height;
     } else {
-      bars[i] *= 0.9;
+      // Biarkan bar turun perlahan saat di-pause
+      bars[i] *= 0.85; 
     }
     ctx.fillStyle = "#ccff00";
     ctx.fillRect(i * w, canvas.height - bars[i], w - 2, bars[i]);
   }
-  requestAnimationFrame(drawBars);
 }
-drawBars();
+// Panggil visualizer setiap 100 milidetik (10 kali per detik)
+drawInterval = setInterval(drawBars, 100); 
 
-/* --- MOBILE UNLOCK FIX (Perbaikan dari sesi sebelumnya) --- */
+
+/* --- MOBILE UNLOCK FIX (Mencegah lagu berhenti setelah klik pertama) --- */
 document.addEventListener("click", () => {
   // Hanya panggil play() untuk mendapatkan izin browser, JANGAN pause
   audio.play().catch(()=>{});
