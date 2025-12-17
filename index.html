@@ -3,28 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MLU-Player</title>
+<title>MLU Player</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<div class="winamp">
-  <div class="header">MLU-Player</div>
+<div class="player-wrap">
 
-  <ul id="playlist"></ul>
+  <div class="player-header">MLU PLAYER</div>
+
+  <div class="display">
+    <span id="trackName">READY</span>
+  </div>
+
+  <!-- VISUALIZER -->
+  <canvas id="visualizer"></canvas>
 
   <div class="controls">
-    <button onclick="prev()">⏮</button>
-    <button onclick="togglePlay()">▶ / ⏸</button>
-    <button onclick="next()">⏭</button>
+    <button id="playBtn">▶</button>
+    <button id="stopBtn">⏹</button>
+    <button id="shuffleBtn">🔀</button>
   </div>
 
   <input type="range" id="progress" value="0">
+
+  <ul id="playlist"></ul>
+
 </div>
 
 <audio id="audio" crossorigin="anonymous"></audio>
 
-<script src="db.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
