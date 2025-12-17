@@ -49,7 +49,11 @@ function play(i) {
   
   current = i;
   audio.src = songs[i].url;
-  audio.play();
+  
+  // Menggunakan play().catch() untuk menangani potensi error pemblokiran browser
+  audio.play().catch(error => {
+      console.log("Pemutaran diblokir oleh browser. Coba lagi.", error);
+  });
   updateActiveSong();
 }
 
@@ -58,7 +62,15 @@ function togglePlay() {
     play(0);
     return;
   }
-  audio.paused ? audio.play() : audio.pause();
+  
+  if (audio.paused) {
+    // Jika dijeda, coba putar. Menggunakan catch untuk mengatasi pemblokiran.
+    audio.play().catch(error => {
+        console.log("Tidak bisa memutar setelah jeda. Error:", error);
+    });
+  } else {
+    audio.pause();
+  }
 }
 
 function stopAudio() {
@@ -111,9 +123,5 @@ function drawBars() {
 // Panggil visualizer setiap 100 milidetik (10 kali per detik)
 drawInterval = setInterval(drawBars, 100); 
 
-
-/* --- MOBILE UNLOCK FIX (PENTING: Mencegah lagu berhenti setelah klik pertama) --- */
-document.addEventListener("click", () => {
-  // Kode perbaikan: Hanya panggil play() untuk mendapatkan izin browser, TIDAK pause.
-  audio.play().catch(()=>{});
-}, { once: true });
+/* --- MOBILE UNLOCK FIX (KODE LAMA DIHAPUS TOTAL) --- */
+// Tidak ada kode di sini, karena fungsi UNLOCK digabungkan ke togglePlay() dan play(i)
