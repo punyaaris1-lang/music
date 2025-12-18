@@ -10,14 +10,34 @@ let currentIndex = 0;
 let isPlaying = false;
 let audioCtx, analyser, source, dataArray;
 let isVisualizerInit = false;
-let hue = 0; // Variabel untuk warna warni
+let hue = 0;
 
-// Hapus crossOrigin jika ada, biar ga error di Netlify
-if(audio.hasAttribute("crossorigin")) {
+// Hapus atribut pembawa masalah
+if (audio.hasAttribute("crossorigin")) {
     audio.removeAttribute("crossorigin");
 }
 
-// 1. AMBIL PLAYLIST
+// 1. GLOBAL UNLOCK (Bangunkan Audio Engine saat layar disentuh dimanapun)
+function unlockAudioEngine() {
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+            console.log("Audio Engine Woke Up!");
+        });
+    }
+    // Buat context kosong jika belum ada, buat mancing browser
+    if (!audioCtx) {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            new AudioContext().close(); // Buka tutup cuma buat pancingan
+        } catch (e) {}
+    }
+}
+// Pasang pendengar di seluruh layar
+document.body.addEventListener('touchstart', unlockAudioEngine, { passive: true });
+document.body.addEventListener('click', unlockAudioEngine, { passive: true });
+
+
+// 2. AMBIL PLAYLIST
 fetch("playlist.json")
     .then(res => res.json())
     .then(data => {
@@ -29,13 +49,11 @@ function renderPlaylist() {
     playlistEl.innerHTML = "";
     songs.forEach((song, index) => {
         const li = document.createElement("li");
-        // Bersihkan nama file dari %20
         const rawName = song.url.split('/').pop().replace('.mp3', '');
         const cleanName = decodeURI(rawName).replaceAll('%20', ' '); 
         li.textContent = cleanName;
         
         li.onclick = () => {
-            initAudioContext(); // PENTING: Pancing audio biar nyala
             playSong(index);
         };
         playlistEl.appendChild(li);
@@ -52,20 +70,24 @@ function playSong(index) {
 
     // Reset Audio
     audio.pause();
+    // Mode aman: matikan visualizer dulu sebelum play
+    disconnectVisualizer(); 
+    
     audio.src = songs[index].url;
     audio.load();
     
-    // Play dengan penanganan error
     audio.play().then(() => {
         isPlaying = true;
         btnPlay.innerHTML = "⏸ PAUSE";
         songTitle.textContent = "Playing: " + cleanName;
-        // Pastikan visualizer jalan
-        initAudioContext();
+        
+        // Coba nyalakan visualizer (tapi siap-siap gagal)
+        tryStartVisualizer();
+        
     }).catch(e => {
-        console.log("Auto-play ditahan browser:", e);
+        console.log("Play error:", e);
         btnPlay.innerHTML = "▶ PLAY";
-        songTitle.textContent = "Tap Play untuk memutar...";
+        songTitle.textContent = "Klik Play untuk memutar...";
         isPlaying = false;
     });
 
@@ -73,9 +95,6 @@ function playSong(index) {
 }
 
 function togglePlay() {
-    // Pastikan mesin audio nyala saat tombol ditekan
-    initAudioContext();
-
     if (!audio.src && songs.length > 0) { 
         playSong(0); 
         return; 
@@ -89,6 +108,7 @@ function togglePlay() {
         audio.play().then(() => {
             isPlaying = true;
             btnPlay.innerHTML = "⏸ PAUSE";
+            tryStartVisualizer();
         });
     }
 }
@@ -119,65 +139,74 @@ function updateActiveList() {
 
 audio.onended = () => nextSong();
 
-// --- MESIN VISUALIZER RGB ---
-function initAudioContext() {
-    // Jika sudah init, cukup resume (bangunkan) kalau suspended
-    if (audioCtx) {
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-        return;
+
+// --- SISTEM VISUALIZER AMAN (SAFE MODE) ---
+
+function disconnectVisualizer() {
+    // Putuskan sambungan visualizer biar audio langsung ke speaker
+    // Ini penting buat reset kalau error
+    isVisualizerInit = false;
+}
+
+function tryStartVisualizer() {
+    // Kalau audio context belum ada atau suspended, coba bangunkan
+    if (!audioCtx) {
+        initAudioContext();
+    } else if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
     }
+    
+    // Cek apakah beneran jalan?
+    setTimeout(() => {
+        if (audioCtx && audioCtx.state === 'running') {
+            isVisualizerInit = true;
+            drawVisualizer();
+        } else {
+            console.log("Visualizer gagal start di Embed, pakai mode audio biasa.");
+            // Biarkan visualizer mati, jangan dipaksa connect, biar suara tetap keluar
+        }
+    }, 500);
+}
+
+function initAudioContext() {
+    if (audioCtx) return;
 
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContext();
         analyser = audioCtx.createAnalyser();
         
-        // KUNCI AGAR ADA SUARA:
-        // Audio -> Analyser (Grafik) -> Destination (Speaker)
         source = audioCtx.createMediaElementSource(audio);
         source.connect(analyser);
-        analyser.connect(audioCtx.destination); // <--- INI YG BIKIN BUNYI
+        analyser.connect(audioCtx.destination); 
 
-        analyser.fftSize = 128; // Jumlah batang
+        analyser.fftSize = 128; 
         dataArray = new Uint8Array(analyser.frequencyBinCount);
-        isVisualizerInit = true;
         
-        drawVisualizer();
     } catch (e) {
         console.error("Gagal init visualizer:", e);
     }
 }
 
 function drawVisualizer() {
-    requestAnimationFrame(drawVisualizer);
     if (!isVisualizerInit) return;
-
+    
+    requestAnimationFrame(drawVisualizer);
     analyser.getByteFrequencyData(dataArray);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Hitung lebar batang
     const barWidth = (canvas.width / dataArray.length) * 2.5;
     let x = 0;
-    
-    // Putar warna (Rainbow Effect)
     hue += 2; 
 
     for (let i = 0; i < dataArray.length; i++) {
         let barHeight = dataArray[i] / 3;
-        
-        // WARNA WARNI (HSL)
         ctx.fillStyle = `hsl(${i * 5 + hue}, 100%, 50%)`;
-        
-        // EFEK NEON GLOW
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 15;
         ctx.shadowColor = `hsl(${i * 5 + hue}, 100%, 50%)`;
-
         ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
-        
         x += barWidth;
     }
-    // Reset efek biar ringan
     ctx.shadowBlur = 0;
-}
+             }
+        
