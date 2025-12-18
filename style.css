@@ -1,65 +1,37 @@
 :root { --accent: #ccff00; }
+body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+.player-container { display: flex; flex-direction: column; height: 100vh; }
 
-body, html {
-    margin: 0; padding: 0;
-    height: 100%; /* Penting agar container bisa mengisi full frame 200px */
-    background-color: #000;
-    color: #fff;
-    font-family: sans-serif;
-    overflow: hidden;
-}
-
-.player-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh; /* Memaksa container setinggi layar/frame */
-}
-
+/* Teks Berjalan CSS - Lebih stabil dari Marquee */
 .now-playing {
     background: #111;
-    color: var(--accent);
-    font-size: 10px;
-    padding: 3px 0;
-    flex-shrink: 0;
+    overflow: hidden;
+    white-space: nowrap;
     border-bottom: 1px solid #333;
-}
-
-.visualizer-box {
-    height: 30px; 
-    background: #000;
     flex-shrink: 0;
+    height: 25px;
+}
+.scroll-text {
+    display: inline-block;
+    padding-left: 100%;
+    animation: marquee 10s linear infinite;
+    color: var(--accent);
+    font-size: 11px;
+    line-height: 25px;
+}
+@keyframes marquee {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(-100%, 0); }
 }
 
-#visualizer { width: 100%; height: 100%; }
-
-audio {
-    width: 100%;
-    height: 35px;
-    flex-shrink: 0;
-    filter: invert(1) hue-rotate(80deg) brightness(1.5);
-}
-
-/* Menghilangkan background putih/setengah lingkaran */
-audio::-webkit-media-controls-enclosure { background-color: rgba(0,0,0,0); }
+.visualizer-box { height: 35px; background: #000; flex-shrink: 0; }
+audio { width: 100%; height: 35px; flex-shrink: 0; filter: invert(1) hue-rotate(80deg); }
 
 .playlist-wrapper {
-    flex-grow: 1; /* INI KUNCINYA: Mengisi semua area kosong di bawah */
+    flex: 1; /* Menghilangkan area kosong merah */
     background: #111;
     overflow-y: auto;
     border-top: 1px solid var(--accent);
 }
-
-ul { list-style: none; padding: 0; margin: 0; }
-
-li {
-    padding: 10px 15px;
-    border-bottom: 1px solid #222;
-    font-size: 11px;
-    cursor: pointer;
-}
-
-li.active {
-    color: var(--accent);
-    background: rgba(204, 255, 0, 0.1);
-    font-weight: bold;
-}
+li { padding: 10px 15px; border-bottom: 1px solid #222; font-size: 11px; color: #fff; cursor: pointer; }
+li.active { color: var(--accent); background: rgba(204, 255, 0, 0.1); font-weight: bold; }
