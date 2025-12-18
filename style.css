@@ -4,7 +4,7 @@ body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hi
 .player-container { 
     display: flex; 
     flex-direction: column; 
-    height: 100vh; /* Menyesuaikan tinggi frame dari aplikasi antrian */
+    height: 100vh; 
 }
 
 /* 1. TEKS BERJALAN */
@@ -14,7 +14,7 @@ body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hi
     white-space: nowrap;
     border-bottom: 1px solid #333;
     flex-shrink: 0;
-    height: 25px;
+    height: 25px; /* Tinggi baris judul */
 }
 .scroll-text {
     display: inline-block;
@@ -27,62 +27,61 @@ body, html { margin: 0; padding: 0; height: 100%; background: #000; overflow: hi
 }
 @keyframes marquee { 100% { transform: translate(-100%, 0); } }
 
-/* 2. BODY PLAYER */
-.main-body {
-    flex-shrink: 0;
-    background: #000;
-    padding: 10px 0 0 0; /* Padding bawah 0 biar visualizer nempel list */
-    display: flex;
-    flex-direction: column; 
-    align-items: center;
-    border-bottom: 1px solid var(--accent); /* Garis pemisah tegas dengan list */
-}
-
-/* TOMBOL KONTROL */
-.custom-controls {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 5px;
-}
-.custom-controls button {
-    background: transparent;
-    border: 2px solid var(--accent);
-    color: var(--accent);
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    font-size: 16px;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: 0.2s;
-}
-.custom-controls button:active { background: var(--accent); color: #000; transform: scale(0.9); }
-#btnPlay { width: 45px; height: 45px; font-size: 20px; background: rgba(204, 255, 0, 0.1); }
-
-/* VISUALIZER */
+/* 2. VISUALIZER (Di Atas Tombol) */
 .visualizer-box { 
     width: 100%;
-    height: 25px; 
+    height: 40px; /* Ruang soundbar lebih lega */
+    background: #000;
     display: flex;
     align-items: flex-end; 
-    opacity: 0.8;
+    flex-shrink: 0;
+    border-bottom: 1px solid #222;
 }
 #visualizer { width: 100%; height: 100%; }
 
-/* 3. PLAYLIST (Tanpa Tombol Buka Tutup) */
+/* 3. TOMBOL PERSEGI PANJANG (Compact 3 Tombol) */
+.custom-controls {
+    display: flex;
+    width: 100%;
+    height: 35px; /* Tinggi tombol pas, tidak makan tempat */
+    background: #111;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--accent);
+}
+
+.custom-controls button {
+    flex: 1; /* Membagi lebar rata 3 tombol */
+    background: transparent;
+    border: none;
+    border-right: 1px solid #333; /* Garis pemisah antar tombol */
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px; /* Jarak icon dan teks */
+    border-radius: 0; /* Kotak persegi */
+}
+.custom-controls button:last-child { border-right: none; }
+.custom-controls button:hover { background: #222; }
+.custom-controls button:active { background: var(--accent); color: #000; }
+
+/* 4. PLAYLIST */
 .playlist-wrapper {
-    flex: 1; /* Otomatis mengisi sisa tinggi frame */
+    flex: 1; 
     background: #0a0a0a;
     overflow-y: auto;
 }
 
 ul { 
     list-style: none; 
-    padding: 0; 
-    margin: 0; 
-    /* Tetap dikasih bantalan bawah biar lagu terakhir ga ketutup */
-    padding-bottom: 80px; 
+    padding: 0; margin: 0; 
+    padding-bottom: 60px; /* Bantalan bawah aman */
 }
 
-li { padding: 12px 15px; border-bottom: 1px solid #222; font-size: 11px; color: #ccc; cursor: pointer; }
+li { padding: 10px 15px; border-bottom: 1px solid #222; font-size: 11px; color: #ccc; cursor: pointer; }
 li:hover { background: #111; }
 li.active { color: #000; background: var(--accent); font-weight: bold; }
