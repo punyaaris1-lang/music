@@ -9,81 +9,59 @@ let songs = [];
 let currentIndex = 0;
 let isPlaying = false;
 let audioCtx, analyser, source, dataArray;
-let isAutoplayAttempted = false;
+let isVisualizerInit = false;
+let hue = 0; // Variabel untuk warna warni
 
-// 1. AMBIL PLAYLIST & COBA AUTO PLAY
+// 1. AMBIL PLAYLIST
 fetch("playlist.json")
     .then(res => res.json())
     .then(data => {
         songs = data;
         renderPlaylist();
-        
-        // FITUR AUTO START: Coba putar lagu pertama langsung
-        if (songs.length > 0) {
-            // Kita set timeout dikit biar loading beres
-            setTimeout(() => {
-                playSong(0, true); // True artinya ini percobaan autoplay
-            }, 500);
-        }
     });
 
 function renderPlaylist() {
     playlistEl.innerHTML = "";
     songs.forEach((song, index) => {
         const li = document.createElement("li");
-        // Bersihkan nama file agar rapi
-        const name = song.url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
-        li.textContent = name;
-        li.onclick = () => playSong(index, false);
+        const rawName = song.url.split('/').pop().replace('.mp3', '');
+        const cleanName = decodeURI(rawName).replaceAll('%20', ' '); 
+        li.textContent = cleanName;
+        li.onclick = () => playSong(index);
         playlistEl.appendChild(li);
     });
 }
 
-function playSong(index, isAutoStart = false) {
+function playSong(index) {
     currentIndex = index;
-    const name = songs[index].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
-    
-    // Set judul dulu
-    songTitle.textContent = "Loading: " + name;
+    const rawName = songs[index].url.split('/').pop().replace('.mp3', '');
+    const cleanName = decodeURI(rawName).replaceAll('%20', ' '); 
+    songTitle.textContent = "Loading: " + cleanName;
 
+    audio.pause();
     audio.src = songs[index].url;
     audio.load();
     
-    isPlaying = false;
+    btnPlay.innerHTML = "⏳";
     
-    // Panggil fungsi pemutar
-    attemptPlay(name, isAutoStart);
-
-    updateActiveList();
-    startVisualizer();
-}
-
-function attemptPlay(songName, isAutoStart) {
     audio.play().then(() => {
-        // SUKSES PLAY
         isPlaying = true;
         btnPlay.innerHTML = "⏸ PAUSE";
-        songTitle.textContent = "Playing: " + songName;
+        songTitle.textContent = "Playing: " + cleanName;
+        initAudioContext();
     }).catch(error => {
-        // GAGAL PLAY (DIBLOKIR BROWSER)
-        console.log("Autoplay diblokir browser, menunggu klik user.");
-        isPlaying = false;
+        console.log("Play error:", error);
         btnPlay.innerHTML = "▶ PLAY";
-        
-        if (isAutoStart) {
-            // Jika ini auto start awal, kasih tahu user
-            songTitle.textContent = "TAP TOMBOL PLAY UNTUK MEMULAI 🎵";
-        } else {
-            // Jika gagal di tengah jalan
-            songTitle.textContent = "Klik Play untuk memutar...";
-        }
+        songTitle.textContent = "Tap Play untuk memutar...";
+        isPlaying = false;
     });
+
+    updateActiveList();
 }
 
 function togglePlay() {
-    // Jika belum ada lagu, putar no 0
-    if (!audio.src) { 
-        playSong(0, false); 
+    if (!audio.src && songs.length > 0) { 
+        playSong(0); 
         return; 
     }
 
@@ -92,9 +70,14 @@ function togglePlay() {
         isPlaying = false;
         btnPlay.innerHTML = "▶ PLAY";
     } else {
-        // Coba play lagi saat tombol diklik
-        const currentName = songs[currentIndex].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
-        attemptPlay(currentName, false);
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        audio.play().then(() => {
+            isPlaying = true;
+            btnPlay.innerHTML = "⏸ PAUSE";
+            initAudioContext();
+        });
     }
 }
 
@@ -108,7 +91,7 @@ function stopSong() {
 
 function nextSong() {
     currentIndex = (currentIndex + 1) % songs.length;
-    playSong(currentIndex, false); // False karena ini interaksi user/lanjutan
+    playSong(currentIndex);
 }
 
 function updateActiveList() {
@@ -122,33 +105,57 @@ function updateActiveList() {
     });
 }
 
-// Auto Next saat lagu habis
 audio.onended = () => nextSong();
 
-function startVisualizer() {
-    if (audioCtx) return;
+// VISUALIZER RGB (WARNA WARNI)
+function initAudioContext() {
+    if (isVisualizerInit) return;
+    
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
         source = audioCtx.createMediaElementSource(audio);
         source.connect(analyser);
         analyser.connect(audioCtx.destination);
-        analyser.fftSize = 64;
+        
+        analyser.fftSize = 64; // Jumlah batang bar
         dataArray = new Uint8Array(analyser.frequencyBinCount);
+        isVisualizerInit = true;
+        
+        drawVisualizer();
+    } catch (e) { console.log(e); }
+}
 
-        function draw() {
-            requestAnimationFrame(draw);
-            analyser.getByteFrequencyData(dataArray);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            let barWidth = (canvas.width / dataArray.length) * 2.5;
-            let x = 0;
-            for (let i = 0; i < dataArray.length; i++) {
-                let barHeight = dataArray[i] / 4;
-                ctx.fillStyle = "#ccff00";
-                ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
-                x += barWidth;
-            }
-        }
-        draw();
-    } catch (e) {}
+function drawVisualizer() {
+    if (!isVisualizerInit) return;
+    requestAnimationFrame(drawVisualizer);
+    
+    analyser.getByteFrequencyData(dataArray);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    let barWidth = (canvas.width / dataArray.length) * 2.5;
+    let x = 0;
+    
+    // Kecepatan ganti warna (semakin besar angka, semakin cepat)
+    hue += 2; 
+
+    for (let i = 0; i < dataArray.length; i++) {
+        let barHeight = dataArray[i] / 3.5; // Skala tinggi bar
+        
+        // RUMUS WARNA WARNI (Rainbow HSL)
+        // i * 10 = membuat gradasi antar batang
+        // hue = membuat warna bergerak terus
+        ctx.fillStyle = `hsl(${i * 10 + hue}, 100%, 50%)`;
+        
+        // Gambar Batang
+        ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+        
+        // Efek Bayangan (Opsional, biar makin glowing)
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `hsl(${i * 10 + hue}, 100%, 50%)`;
+
+        x += barWidth;
+    }
+    // Reset shadow biar ga berat
+    ctx.shadowBlur = 0; 
 }
