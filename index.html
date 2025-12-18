@@ -1,29 +1,25 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MLU Player</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLU PLAYER PRO</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="player-container">
+        <h1>MLU PLAYER</h1>
+        
+        <div class="visualizer-box">
+            <canvas id="visualizer"></canvas>
+        </div>
 
-<div class="player">
-  <div class="top">MLU PLAYER</div>
-
-  <canvas id="visualizer" width="300" height="60"></canvas>
-
-  <div class="controls">
-    <button onclick="prevSong()">⏮</button>  <button onclick="togglePlay()">▶ / ⏸</button>
-    <button onclick="nextSong()">⏭</button>  <button onclick="stopAudio()">⏹</button>
-    <button onclick="shuffle()">🔀</button>
-  </div>
-
-  <ul id="playlist"></ul>
-</div>
-
-<audio id="audio" preload="none" crossorigin="anonymous"></audio>
-
-<script src="app.js"></script>
+        <audio id="audio" controls crossorigin="anonymous"></audio>
+        
+        <div class="playlist-wrapper">
+            <ul id="playlist"></ul>
+        </div>
+    </div>
+    <script src="app.js"></script>
 </body>
 </html>
