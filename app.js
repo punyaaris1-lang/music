@@ -12,6 +12,11 @@ let audioCtx, analyser, source, dataArray;
 let isVisualizerInit = false;
 let hue = 0; // Variabel untuk warna warni
 
+// Hapus crossOrigin jika ada, biar ga error di Netlify
+if(audio.hasAttribute("crossorigin")) {
+    audio.removeAttribute("crossorigin");
+}
+
 // 1. AMBIL PLAYLIST
 fetch("playlist.json")
     .then(res => res.json())
@@ -24,10 +29,15 @@ function renderPlaylist() {
     playlistEl.innerHTML = "";
     songs.forEach((song, index) => {
         const li = document.createElement("li");
+        // Bersihkan nama file dari %20
         const rawName = song.url.split('/').pop().replace('.mp3', '');
         const cleanName = decodeURI(rawName).replaceAll('%20', ' '); 
         li.textContent = cleanName;
-        li.onclick = () => playSong(index);
+        
+        li.onclick = () => {
+            initAudioContext(); // PENTING: Pancing audio biar nyala
+            playSong(index);
+        };
         playlistEl.appendChild(li);
     });
 }
@@ -36,21 +46,24 @@ function playSong(index) {
     currentIndex = index;
     const rawName = songs[index].url.split('/').pop().replace('.mp3', '');
     const cleanName = decodeURI(rawName).replaceAll('%20', ' '); 
+    
     songTitle.textContent = "Loading: " + cleanName;
+    btnPlay.innerHTML = "⏳";
 
+    // Reset Audio
     audio.pause();
     audio.src = songs[index].url;
     audio.load();
     
-    btnPlay.innerHTML = "⏳";
-    
+    // Play dengan penanganan error
     audio.play().then(() => {
         isPlaying = true;
         btnPlay.innerHTML = "⏸ PAUSE";
         songTitle.textContent = "Playing: " + cleanName;
+        // Pastikan visualizer jalan
         initAudioContext();
-    }).catch(error => {
-        console.log("Play error:", error);
+    }).catch(e => {
+        console.log("Auto-play ditahan browser:", e);
         btnPlay.innerHTML = "▶ PLAY";
         songTitle.textContent = "Tap Play untuk memutar...";
         isPlaying = false;
@@ -60,6 +73,9 @@ function playSong(index) {
 }
 
 function togglePlay() {
+    // Pastikan mesin audio nyala saat tombol ditekan
+    initAudioContext();
+
     if (!audio.src && songs.length > 0) { 
         playSong(0); 
         return; 
@@ -70,13 +86,9 @@ function togglePlay() {
         isPlaying = false;
         btnPlay.innerHTML = "▶ PLAY";
     } else {
-        if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
         audio.play().then(() => {
             isPlaying = true;
             btnPlay.innerHTML = "⏸ PAUSE";
-            initAudioContext();
         });
     }
 }
@@ -107,55 +119,65 @@ function updateActiveList() {
 
 audio.onended = () => nextSong();
 
-// VISUALIZER RGB (WARNA WARNI)
+// --- MESIN VISUALIZER RGB ---
 function initAudioContext() {
-    if (isVisualizerInit) return;
-    
+    // Jika sudah init, cukup resume (bangunkan) kalau suspended
+    if (audioCtx) {
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        return;
+    }
+
     try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
         analyser = audioCtx.createAnalyser();
+        
+        // KUNCI AGAR ADA SUARA:
+        // Audio -> Analyser (Grafik) -> Destination (Speaker)
         source = audioCtx.createMediaElementSource(audio);
         source.connect(analyser);
-        analyser.connect(audioCtx.destination);
-        
-        analyser.fftSize = 64; // Jumlah batang bar
+        analyser.connect(audioCtx.destination); // <--- INI YG BIKIN BUNYI
+
+        analyser.fftSize = 128; // Jumlah batang
         dataArray = new Uint8Array(analyser.frequencyBinCount);
         isVisualizerInit = true;
         
         drawVisualizer();
-    } catch (e) { console.log(e); }
+    } catch (e) {
+        console.error("Gagal init visualizer:", e);
+    }
 }
 
 function drawVisualizer() {
-    if (!isVisualizerInit) return;
     requestAnimationFrame(drawVisualizer);
-    
+    if (!isVisualizerInit) return;
+
     analyser.getByteFrequencyData(dataArray);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    let barWidth = (canvas.width / dataArray.length) * 2.5;
+    // Hitung lebar batang
+    const barWidth = (canvas.width / dataArray.length) * 2.5;
     let x = 0;
     
-    // Kecepatan ganti warna (semakin besar angka, semakin cepat)
+    // Putar warna (Rainbow Effect)
     hue += 2; 
 
     for (let i = 0; i < dataArray.length; i++) {
-        let barHeight = dataArray[i] / 3.5; // Skala tinggi bar
+        let barHeight = dataArray[i] / 3;
         
-        // RUMUS WARNA WARNI (Rainbow HSL)
-        // i * 10 = membuat gradasi antar batang
-        // hue = membuat warna bergerak terus
-        ctx.fillStyle = `hsl(${i * 10 + hue}, 100%, 50%)`;
+        // WARNA WARNI (HSL)
+        ctx.fillStyle = `hsl(${i * 5 + hue}, 100%, 50%)`;
         
-        // Gambar Batang
-        ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
-        
-        // Efek Bayangan (Opsional, biar makin glowing)
+        // EFEK NEON GLOW
         ctx.shadowBlur = 10;
-        ctx.shadowColor = `hsl(${i * 10 + hue}, 100%, 50%)`;
+        ctx.shadowColor = `hsl(${i * 5 + hue}, 100%, 50%)`;
 
+        ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+        
         x += barWidth;
     }
-    // Reset shadow biar ga berat
-    ctx.shadowBlur = 0; 
+    // Reset efek biar ringan
+    ctx.shadowBlur = 0;
 }
