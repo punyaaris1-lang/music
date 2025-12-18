@@ -1,37 +1,33 @@
 const audio = document.getElementById("audio");
 const playlistEl = document.getElementById("playlist");
-let songs = [];
 
-// Memuat daftar lagu dari playlist.json
+// Tambahkan ini agar browser tidak memblokir lagu dari Netlify
+audio.crossOrigin = "anonymous";
+
 fetch("playlist.json")
   .then(res => res.json())
-  .then(data => {
-    songs = data;
-    renderPlaylist();
-  });
-
-function renderPlaylist() {
-  playlistEl.innerHTML = "";
-  songs.forEach((song, index) => {
-    const li = document.createElement("li");
-    // Mengambil nama file agar tampilan bersih
-    const fileName = song.url.split('/').pop().replaceAll('%20', ' ');
-    li.textContent = fileName;
-    
-    // Klik langsung jalankan lagu (Interaksi User Langsung)
-    li.onclick = () => {
-      audio.src = song.url;
-      audio.play();
+  .then(songs => {
+    playlistEl.innerHTML = "";
+    songs.forEach((song) => {
+      const li = document.createElement("li");
+      const fileName = song.url.split('/').pop().replaceAll('%20', ' ');
+      li.textContent = fileName;
       
-      // Tandai lagu yang sedang diputar
-      document.querySelectorAll('li').forEach(el => el.style.color = "white");
-      li.style.color = "#ccff00";
-    };
-    playlistEl.appendChild(li);
+      li.onclick = () => {
+        // Reset audio sebelum putar yang baru
+        audio.pause();
+        audio.src = song.url;
+        audio.load(); // Paksa browser muat ulang file
+        
+        // Coba putar
+        let playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.log("Gagal putar:", error);
+          });
+        }
+      };
+      playlistEl.appendChild(li);
+    });
   });
-}
 
-// Otomatis lanjut ke lagu berikutnya
-audio.onended = () => {
-  // Anda bisa menambahkan logika next otomatis di sini nanti
-};
