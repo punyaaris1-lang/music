@@ -60,7 +60,7 @@ function startVisualizer() {
         let barWidth = (canvas.width / bufferLength) * 2;
         let x = 0;
         for (let i = 0; i < bufferLength; i++) {
-            let barHeight = dataArray[i] / 4; // Menyesuaikan tinggi visualizer
+            let barHeight = dataArray[i] / 6; // Menyesuaikan tinggi visualizer
             ctx.fillStyle = "#ccff00";
             ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
             x += barWidth;
