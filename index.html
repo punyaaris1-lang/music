@@ -12,21 +12,19 @@
             <div id="songTitle" class="scroll-text">Silakan pilih lagu...</div>
         </div>
 
-        <div class="main-body">
-            <div class="custom-controls">
-                <button id="btnPlay" onclick="togglePlay()">▶</button>
-                <button id="btnStop" onclick="stopSong()">⏹</button>
-                <button id="btnNext" onclick="nextSong()">⏭</button>
-            </div>
+        <div class="visualizer-box">
+            <canvas id="visualizer"></canvas>
+        </div>
 
-            <div class="visualizer-box">
-                <canvas id="visualizer"></canvas>
-            </div>
+        <div class="custom-controls">
+            <button id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
+            <button id="btnStop" onclick="stopSong()">⏹ STOP</button>
+            <button id="btnNext" onclick="nextSong()">⏭ NEXT</button>
         </div>
 
         <audio id="audio" crossorigin="anonymous" style="display:none;"></audio>
 
-        <div class="playlist-wrapper" id="playlistBox">
+        <div class="playlist-wrapper">
             <ul id="playlist"></ul>
         </div>
     </div>
