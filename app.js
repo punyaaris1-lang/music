@@ -1,46 +1,70 @@
 const audio = document.getElementById("audio");
 const playlistEl = document.getElementById("playlist");
-const netlifyURL = "https://mlump3player.netlify.app/"; // Link Netlify Anda
+const canvas = document.getElementById("visualizer");
+let songs = [];
+let current = 0;
+let audioCtx, analyser, source, dataArray, bufferLength;
 
-// FUNGSI AUTO-SCAN FOLDER
-fetch(netlifyURL)
-  .then(res => res.text())
-  .then(html => {
-    // Mencari semua link yang berakhiran .mp3 di halaman Netlify
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const links = Array.from(doc.querySelectorAll('a'));
-    
-    const mp3Files = links
-      .map(link => link.getAttribute('href'))
-      .filter(href => href && href.endsWith('.mp3'));
+// Muat Playlist
+fetch("playlist.json")
+  .then(res => res.json())
+  .then(data => {
+    songs = data;
+    renderPlaylist();
+  });
 
-    renderPlaylist(mp3Files);
-  })
-  .catch(err => alert("Gagal scan folder: " + err));
-
-function renderPlaylist(files) {
+function renderPlaylist() {
   playlistEl.innerHTML = "";
-  files.forEach((file, index) => {
+  songs.forEach((song, index) => {
     const li = document.createElement("li");
-    // Bersihkan nama file untuk tampilan
-    const cleanName = decodeURIComponent(file).replace('.mp3', '');
-    li.textContent = cleanName;
-    
-    li.onclick = () => {
-      audio.crossOrigin = "anonymous";
-      audio.src = netlifyURL + file;
-      audio.play();
-      
-      // Efek warna aktif
-      document.querySelectorAll('li').forEach(el => el.style.color = "white");
-      li.style.color = "#ccff00";
-    };
+    const fileName = song.url.split('/').pop().replaceAll('%20', ' ');
+    li.textContent = fileName.replace('.mp3', '');
+    li.onclick = () => playSong(index);
     playlistEl.appendChild(li);
   });
 }
 
-// Auto Next
+function playSong(index) {
+  current = index;
+  audio.crossOrigin = "anonymous"; // Penting agar soundbar bisa baca data
+  audio.src = songs[index].url;
+  audio.load();
+  audio.play();
+  
+  document.querySelectorAll('li').forEach((li, i) => {
+    li.style.color = (i === index) ? "#ccff00" : "white";
+  });
+  setupVisualizer();
+}
+
 audio.onended = () => {
-  // Logika untuk putar lagu berikutnya otomatis
+  current = (current + 1) % songs.length;
+  playSong(current);
 };
+
+function setupVisualizer() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  source = audioCtx.createMediaElementSource(audio);
+  source.connect(analyser);
+  analyser.connect(audioCtx.destination);
+  analyser.fftSize = 64;
+  bufferLength = analyser.frequencyBinCount;
+  dataArray = new Uint8Array(bufferLength);
+  const ctx = canvas.getContext("2d");
+  function draw() {
+    requestAnimationFrame(draw);
+    analyser.getByteFrequencyData(dataArray);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const barWidth = (canvas.width / bufferLength) * 2;
+    let x = 0;
+    for (let i = 0; i < bufferLength; i++) {
+      let barHeight = dataArray[i] / 2;
+      ctx.fillStyle = "#ccff00";
+      ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+      x += barWidth + 2;
+    }
+  }
+  draw();
+}
