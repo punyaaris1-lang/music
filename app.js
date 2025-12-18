@@ -8,14 +8,13 @@ const ctx = canvas.getContext("2d");
 let songs = [];
 let currentIndex = 0;
 let isPlaying = false;
+let animationId;
+let hue = 0; // Warna warni
 
-// Variabel Global Audio Context (PENTING: Jangan dibuat ulang)
-let audioCtx, analyser, source, dataArray;
-let isVisualizerConnected = false;
-let hue = 0;
-
-// Pastikan CrossOrigin aktif untuk GitHub
-audio.crossOrigin = "anonymous";
+// Hapus settingan CORS yg bikin ribet, kembalikan ke standar
+if (audio.hasAttribute("crossorigin")) {
+    audio.removeAttribute("crossorigin");
+}
 
 // 1. AMBIL PLAYLIST
 fetch("playlist.json")
@@ -48,36 +47,32 @@ function playSong(index) {
     songTitle.textContent = "Loading: " + cleanName;
     btnPlay.innerHTML = "⏳";
 
-    // Stop & Reset
+    // Stop dulu
     audio.pause();
     audio.src = songs[index].url;
     audio.load();
 
-    // Play Audio
+    // Play Audio (Tanpa otak-atik AudioContext)
     audio.play().then(() => {
         isPlaying = true;
         btnPlay.innerHTML = "⏸ PAUSE";
         songTitle.textContent = "Playing: " + cleanName;
         
-        // Coba nyalakan visualizer SETELAH lagu bunyi
-        setupVisualizer();
+        // Jalankan Animasi Bar
+        startAnimation();
         
     }).catch(e => {
         console.error("Play Gagal:", e);
         btnPlay.innerHTML = "▶ PLAY";
         songTitle.textContent = "Klik Play Manual...";
         isPlaying = false;
+        stopAnimation();
     });
 
     updateActiveList();
 }
 
 function togglePlay() {
-    // Pancing Visualizer saat tombol ditekan
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-
     if (!audio.src && songs.length > 0) {
         playSong(0);
         return;
@@ -87,11 +82,12 @@ function togglePlay() {
         audio.pause();
         isPlaying = false;
         btnPlay.innerHTML = "▶ PLAY";
+        stopAnimation();
     } else {
         audio.play().then(() => {
             isPlaying = true;
             btnPlay.innerHTML = "⏸ PAUSE";
-            setupVisualizer();
+            startAnimation();
         });
     }
 }
@@ -102,6 +98,8 @@ function stopSong() {
     isPlaying = false;
     btnPlay.innerHTML = "▶ PLAY";
     songTitle.textContent = "Musik Dihentikan";
+    stopAnimation();
+    clearCanvas(); // Bersihkan visualizer
 }
 
 function nextSong() {
@@ -122,66 +120,62 @@ function updateActiveList() {
 
 audio.onended = () => nextSong();
 
-// --- VISUALIZER ENGINE (STABIL) ---
-function setupVisualizer() {
-    // Jika sudah pernah connect, cukup resume context-nya
-    if (isVisualizerConnected) {
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-        return;
-    }
+// --- VISUALIZER SIMULASI (BIAR AUDIO AMAN) ---
+// Kita buat grafik gerak sendiri tanpa mengambil data dari audio
+// Ini menjamin audio tidak akan bisu karena error sistem
 
-    try {
-        // Inisialisasi SATU KALI SAJA seumur hidup page load
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-        analyser = audioCtx.createAnalyser();
-        
-        // Bikin Source dari Audio Element
-        source = audioCtx.createMediaElementSource(audio);
-        
-        // Sambungkan: Audio -> Analyser -> Speaker
-        source.connect(analyser);
-        analyser.connect(audioCtx.destination); // Ini yg bikin bunyi
+function startAnimation() {
+    if (animationId) cancelAnimationFrame(animationId);
+    drawVisualizer();
+}
 
-        analyser.fftSize = 128;
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-        
-        isVisualizerConnected = true; // Tandai sudah connect
-        drawVisualizer();
-        
-    } catch (e) {
-        console.log("Visualizer Gagal (Mungkin Embed memblokir AudioContext):", e);
-        // Kalau gagal, audio tetap bunyi lewat jalur native browser karena source connect gagal
-    }
+function stopAnimation() {
+    if (animationId) cancelAnimationFrame(animationId);
+}
+
+function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawVisualizer() {
-    requestAnimationFrame(drawVisualizer);
-    
-    if (!isVisualizerConnected) return;
+    if (!isPlaying) return; // Stop kalau pause
 
-    analyser.getByteFrequencyData(dataArray);
+    animationId = requestAnimationFrame(drawVisualizer);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    const barWidth = (canvas.width / dataArray.length) * 2.5;
+    // Jumlah batang
+    const barCount = 40; 
+    const barWidth = (canvas.width / barCount) * 1.5;
     let x = 0;
     
-    hue += 2; // Kecepatan warna warni
+    hue += 3; // Kecepatan ganti warna
 
-    for (let i = 0; i < dataArray.length; i++) {
-        let barHeight = dataArray[i] / 3;
+    for (let i = 0; i < barCount; i++) {
+        // RUMUS GERAK ACAK NAMUN HALUS (Simulasi Irama)
+        // Menggunakan waktu (Date.now) biar gelombang jalan
+        const time = Date.now() / 150; 
+        const wave = Math.sin(i * 0.5 + time) * 20; // Gelombang dasar
+        const random = Math.random() * 15; // Sedikit getaran acak
         
-        // Warna Warni RGB
-        ctx.fillStyle = `hsl(${i * 5 + hue}, 100%, 50%)`;
+        // Tinggi bar bervariasi (Min 5px, Max naik turun)
+        let barHeight = 10 + Math.abs(wave) + random; 
         
-        // Efek Glow
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = `hsl(${i * 5 + hue}, 100%, 50%)`;
+        // Batasi tinggi biar ga keluar canvas
+        if (barHeight > canvas.height) barHeight = canvas.height;
 
-        ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+        // WARNA WARNI RGB
+        ctx.fillStyle = `hsl(${i * 10 + hue}, 100%, 50%)`;
+        
+        // EFEK GLOWING
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = `hsl(${i * 10 + hue}, 100%, 50%)`;
+
+        // Gambar Bar (Posisi di tengah secara vertikal biar keren, atau bawah)
+        // Kita taruh dari bawah:
+        ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+        
         x += barWidth;
     }
+    // Reset shadow
     ctx.shadowBlur = 0;
 }
