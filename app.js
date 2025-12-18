@@ -50,11 +50,11 @@ function togglePlay() {
     if (isPlaying) {
         audio.pause();
         isPlaying = false;
-        btnPlay.textContent = "▶";
+        btnPlay.innerHTML = "▶ PLAY";
     } else {
         audio.play().then(() => {
             isPlaying = true;
-            btnPlay.textContent = "⏸";
+            btnPlay.innerHTML = "⏸ PAUSE";
         }).catch(() => console.log("User interaction needed"));
     }
 }
@@ -63,7 +63,7 @@ function stopSong() {
     audio.pause();
     audio.currentTime = 0;
     isPlaying = false;
-    btnPlay.textContent = "▶";
+    btnPlay.innerHTML = "▶ PLAY";
     songTitle.textContent = "Musik Dihentikan";
 }
 
@@ -111,4 +111,4 @@ function startVisualizer() {
         }
         draw();
     } catch (e) {}
-                 }
+}
