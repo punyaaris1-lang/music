@@ -1,14 +1,16 @@
 const audio = document.getElementById("audio");
 const playlistEl = document.getElementById("playlist");
 const songTitle = document.getElementById("songTitle");
+const btnPlay = document.getElementById("btnPlay");
 const canvas = document.getElementById("visualizer");
 const ctx = canvas.getContext("2d");
 
 let songs = [];
 let currentIndex = 0;
+let isPlaying = false;
 let audioCtx, analyser, source, dataArray;
 
-// 1. Ambil Data Playlist
+// 1. Ambil Playlist
 fetch("playlist.json")
     .then(res => res.json())
     .then(data => {
@@ -27,48 +29,72 @@ function renderPlaylist() {
     });
 }
 
-// FUNGSI PLAY UTAMA
+// 2. Fungsi Utama Play
 function playSong(index) {
     currentIndex = index;
     const name = songs[index].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
-    
-    // Update Judul
     songTitle.textContent = "Playing: " + name;
 
-    // PENTING: Bersihkan state audio agar tidak macet
-    audio.pause();
-    audio.removeAttribute('src'); 
+    audio.src = songs[index].url;
     audio.load();
     
-    // Masukkan URL baru
-    audio.crossOrigin = "anonymous"; 
-    audio.src = songs[index].url;
+    // Panggil fungsi togglePlay untuk mulai
+    isPlaying = false; 
+    togglePlay();
 
-    // Jalankan play dengan interaksi user
-    const playPromise = audio.play();
-    
-    if (playPromise !== undefined) {
-        playPromise.then(_ => {
-            console.log("Playback started");
-            startVisualizer();
-        }).catch(error => {
-            console.log("Playback failed: " + error);
-            // Jika autoplay gagal, user harus tekan tombol play manual
-        });
+    updateActiveList();
+    startVisualizer();
+}
+
+// 3. Tombol Play / Pause (Ganti Icon)
+function togglePlay() {
+    if (audio.src === "") {
+        playSong(0); // Jika belum ada lagu, putar lagu pertama
+        return;
     }
 
-    // Update Tampilan List
+    if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        btnPlay.textContent = "▶"; // Icon Play
+    } else {
+        audio.play().then(() => {
+            isPlaying = true;
+            btnPlay.textContent = "⏸"; // Icon Pause
+        }).catch(err => console.log("Perlu interaksi user"));
+    }
+}
+
+// 4. Tombol Stop
+function stopSong() {
+    audio.pause();
+    audio.currentTime = 0;
+    isPlaying = false;
+    btnPlay.textContent = "▶";
+    songTitle.textContent = "Musik Dihentikan";
+}
+
+// 5. Tombol Next
+function nextSong() {
+    currentIndex = (currentIndex + 1) % songs.length;
+    playSong(currentIndex);
+}
+
+function updateActiveList() {
     document.querySelectorAll('li').forEach((li, i) => {
-        li.classList.toggle("active", i === index);
-        if (i === index) li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (i === currentIndex) {
+            li.classList.add("active");
+            li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            li.classList.remove("active");
+        }
     });
 }
 
-audio.onended = () => {
-    currentIndex = (currentIndex + 1) % songs.length;
-    playSong(currentIndex);
-};
+// Otomatis Next saat lagu habis
+audio.onended = () => nextSong();
 
+// Visualizer
 function startVisualizer() {
     if (audioCtx) return;
     try {
@@ -87,13 +113,12 @@ function startVisualizer() {
             let barWidth = (canvas.width / dataArray.length) * 2.5;
             let x = 0;
             for (let i = 0; i < dataArray.length; i++) {
-                let barHeight = dataArray[i] / 5;
+                let barHeight = dataArray[i] / 4;
                 ctx.fillStyle = "#ccff00";
                 ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
                 x += barWidth;
             }
         }
         draw();
-    } catch (e) { console.log("Visualizer blocked"); }
-    }
-                    
+    } catch (e) {}
+}
