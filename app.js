@@ -14,10 +14,8 @@ fetch("playlist.json")
     .then(data => {
         songs = data;
         renderPlaylist();
-    })
-    .catch(err => console.error("Gagal muat playlist:", err));
+    });
 
-// 2. Tampilkan Daftar Lagu
 function renderPlaylist() {
     playlistEl.innerHTML = "";
     songs.forEach((song, index) => {
@@ -29,79 +27,73 @@ function renderPlaylist() {
     });
 }
 
-// 3. Fungsi Putar Lagu (Anti Macet)
-async function playSong(index) {
+// FUNGSI PLAY UTAMA
+function playSong(index) {
     currentIndex = index;
     const name = songs[index].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
     
-    // Update Teks Berjalan (Sistem CSS Animation)
+    // Update Judul
     songTitle.textContent = "Playing: " + name;
 
-    // Reset Audio agar tidak 'stuck' atau diam saja
+    // PENTING: Bersihkan state audio agar tidak macet
     audio.pause();
-    audio.src = ""; 
-    audio.crossOrigin = "anonymous"; // Bypass CORS Netlify
-    audio.src = songs[index].url;
-    audio.load(); // Paksa browser untuk mengenali file baru
-
-    try {
-        await audio.play(); // Menjalankan play dengan metode asinkron
-    } catch (err) {
-        console.log("Klik tombol play manual:", err);
-        songTitle.textContent = "Klik tombol Play untuk memulai musik...";
-    }
+    audio.removeAttribute('src'); 
+    audio.load();
     
-    // Highlight list lagu dan scroll otomatis agar tidak kosong bawahnya
-    document.querySelectorAll('li').forEach((li, i) => {
-        if (i === index) {
-            li.classList.add("active");
-            li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-            li.classList.remove("active");
-        }
-    });
+    // Masukkan URL baru
+    audio.crossOrigin = "anonymous"; 
+    audio.src = songs[index].url;
 
-    startVisualizer();
+    // Jalankan play dengan interaksi user
+    const playPromise = audio.play();
+    
+    if (playPromise !== undefined) {
+        playPromise.then(_ => {
+            console.log("Playback started");
+            startVisualizer();
+        }).catch(error => {
+            console.log("Playback failed: " + error);
+            // Jika autoplay gagal, user harus tekan tombol play manual
+        });
+    }
+
+    // Update Tampilan List
+    document.querySelectorAll('li').forEach((li, i) => {
+        li.classList.toggle("active", i === index);
+        if (i === index) li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
 }
 
-// 4. Otomatis Lanjut Lagu Berikutnya
 audio.onended = () => {
     currentIndex = (currentIndex + 1) % songs.length;
     playSong(currentIndex);
 };
 
-// 5. Visualizer Bar Hijau Neon
 function startVisualizer() {
     if (audioCtx) return;
-
     try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
         source = audioCtx.createMediaElementSource(audio);
         source.connect(analyser);
         analyser.connect(audioCtx.destination);
-        
         analyser.fftSize = 64;
-        const bufferLength = analyser.frequencyBinCount;
-        dataArray = new Uint8Array(bufferLength);
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
 
         function draw() {
             requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            let barWidth = (canvas.width / bufferLength) * 2.5;
+            let barWidth = (canvas.width / dataArray.length) * 2.5;
             let x = 0;
-
-            for (let i = 0; i < bufferLength; i++) {
-                let barHeight = dataArray[i] / 5; // Skala agar tidak menutupi kontrol
-                ctx.fillStyle = "#ccff00"; // Hijau neon
+            for (let i = 0; i < dataArray.length; i++) {
+                let barHeight = dataArray[i] / 5;
+                ctx.fillStyle = "#ccff00";
                 ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
                 x += barWidth;
             }
         }
         draw();
-    } catch (e) {
-        console.log("Visualizer blocked by browser browser policy");
+    } catch (e) { console.log("Visualizer blocked"); }
     }
-}
+                    
