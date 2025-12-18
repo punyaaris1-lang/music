@@ -9,53 +9,92 @@ let songs = [];
 let currentIndex = 0;
 let isPlaying = false;
 let audioCtx, analyser, source, dataArray;
+let isAutoplayAttempted = false;
 
-// AMBIL PLAYLIST
+// 1. AMBIL PLAYLIST & COBA AUTO PLAY
 fetch("playlist.json")
     .then(res => res.json())
     .then(data => {
         songs = data;
         renderPlaylist();
+        
+        // FITUR AUTO START: Coba putar lagu pertama langsung
+        if (songs.length > 0) {
+            // Kita set timeout dikit biar loading beres
+            setTimeout(() => {
+                playSong(0, true); // True artinya ini percobaan autoplay
+            }, 500);
+        }
     });
 
 function renderPlaylist() {
     playlistEl.innerHTML = "";
     songs.forEach((song, index) => {
         const li = document.createElement("li");
+        // Bersihkan nama file agar rapi
         const name = song.url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
         li.textContent = name;
-        li.onclick = () => playSong(index);
+        li.onclick = () => playSong(index, false);
         playlistEl.appendChild(li);
     });
 }
 
-function playSong(index) {
+function playSong(index, isAutoStart = false) {
     currentIndex = index;
     const name = songs[index].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
-    songTitle.textContent = "Playing: " + name;
+    
+    // Set judul dulu
+    songTitle.textContent = "Loading: " + name;
 
     audio.src = songs[index].url;
     audio.load();
     
     isPlaying = false;
-    togglePlay();
+    
+    // Panggil fungsi pemutar
+    attemptPlay(name, isAutoStart);
 
     updateActiveList();
     startVisualizer();
 }
 
+function attemptPlay(songName, isAutoStart) {
+    audio.play().then(() => {
+        // SUKSES PLAY
+        isPlaying = true;
+        btnPlay.innerHTML = "⏸ PAUSE";
+        songTitle.textContent = "Playing: " + songName;
+    }).catch(error => {
+        // GAGAL PLAY (DIBLOKIR BROWSER)
+        console.log("Autoplay diblokir browser, menunggu klik user.");
+        isPlaying = false;
+        btnPlay.innerHTML = "▶ PLAY";
+        
+        if (isAutoStart) {
+            // Jika ini auto start awal, kasih tahu user
+            songTitle.textContent = "TAP TOMBOL PLAY UNTUK MEMULAI 🎵";
+        } else {
+            // Jika gagal di tengah jalan
+            songTitle.textContent = "Klik Play untuk memutar...";
+        }
+    });
+}
+
 function togglePlay() {
-    if (!audio.src) { playSong(0); return; }
+    // Jika belum ada lagu, putar no 0
+    if (!audio.src) { 
+        playSong(0, false); 
+        return; 
+    }
 
     if (isPlaying) {
         audio.pause();
         isPlaying = false;
         btnPlay.innerHTML = "▶ PLAY";
     } else {
-        audio.play().then(() => {
-            isPlaying = true;
-            btnPlay.innerHTML = "⏸ PAUSE";
-        }).catch(() => console.log("User interaction needed"));
+        // Coba play lagi saat tombol diklik
+        const currentName = songs[currentIndex].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
+        attemptPlay(currentName, false);
     }
 }
 
@@ -69,7 +108,7 @@ function stopSong() {
 
 function nextSong() {
     currentIndex = (currentIndex + 1) % songs.length;
-    playSong(currentIndex);
+    playSong(currentIndex, false); // False karena ini interaksi user/lanjutan
 }
 
 function updateActiveList() {
@@ -83,6 +122,7 @@ function updateActiveList() {
     });
 }
 
+// Auto Next saat lagu habis
 audio.onended = () => nextSong();
 
 function startVisualizer() {
