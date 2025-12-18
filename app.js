@@ -10,7 +10,7 @@ let currentIndex = 0;
 let isPlaying = false;
 let audioCtx, analyser, source, dataArray;
 
-// 1. Ambil Playlist
+// AMBIL PLAYLIST
 fetch("playlist.json")
     .then(res => res.json())
     .then(data => {
@@ -29,7 +29,6 @@ function renderPlaylist() {
     });
 }
 
-// 2. Fungsi Utama Play
 function playSong(index) {
     currentIndex = index;
     const name = songs[index].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
@@ -38,34 +37,28 @@ function playSong(index) {
     audio.src = songs[index].url;
     audio.load();
     
-    // Panggil fungsi togglePlay untuk mulai
-    isPlaying = false; 
+    isPlaying = false;
     togglePlay();
 
     updateActiveList();
     startVisualizer();
 }
 
-// 3. Tombol Play / Pause (Ganti Icon)
 function togglePlay() {
-    if (audio.src === "") {
-        playSong(0); // Jika belum ada lagu, putar lagu pertama
-        return;
-    }
+    if (!audio.src) { playSong(0); return; }
 
     if (isPlaying) {
         audio.pause();
         isPlaying = false;
-        btnPlay.textContent = "▶"; // Icon Play
+        btnPlay.textContent = "▶";
     } else {
         audio.play().then(() => {
             isPlaying = true;
-            btnPlay.textContent = "⏸"; // Icon Pause
-        }).catch(err => console.log("Perlu interaksi user"));
+            btnPlay.textContent = "⏸";
+        }).catch(() => console.log("User interaction needed"));
     }
 }
 
-// 4. Tombol Stop
 function stopSong() {
     audio.pause();
     audio.currentTime = 0;
@@ -74,7 +67,6 @@ function stopSong() {
     songTitle.textContent = "Musik Dihentikan";
 }
 
-// 5. Tombol Next
 function nextSong() {
     currentIndex = (currentIndex + 1) % songs.length;
     playSong(currentIndex);
@@ -91,10 +83,8 @@ function updateActiveList() {
     });
 }
 
-// Otomatis Next saat lagu habis
 audio.onended = () => nextSong();
 
-// Visualizer
 function startVisualizer() {
     if (audioCtx) return;
     try {
@@ -121,4 +111,4 @@ function startVisualizer() {
         }
         draw();
     } catch (e) {}
-}
+                 }
