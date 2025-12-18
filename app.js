@@ -8,12 +8,19 @@ let songs = [];
 let currentIndex = 0;
 let audioCtx, analyser, source, dataArray;
 
-// Ambil Playlist
+// Ambil data playlist dengan penanganan error
 fetch("playlist.json")
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) throw new Error("Gagal load playlist.json");
+        return res.json();
+    })
     .then(data => {
         songs = data;
         renderPlaylist();
+    })
+    .catch(err => {
+        console.error(err);
+        songTitle.textContent = "Error: Playlist tidak ditemukan";
     });
 
 function renderPlaylist() {
@@ -27,27 +34,30 @@ function renderPlaylist() {
     });
 }
 
-function playSong(index) {
-    currentIndex = index;
-    const name = songs[index].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
-    
-    // Update Teks Berjalan
-    songTitle.textContent = "Playing: " + name;
+async function playSong(index) {
+    try {
+        currentIndex = index;
+        const name = songs[index].url.split('/').pop().replaceAll('%20', ' ').replace('.mp3', '');
+        songTitle.textContent = "Playing: " + name;
 
-    audio.crossOrigin = "anonymous";
-    audio.src = songs[index].url;
-    audio.play();
-    
-    // Update Tampilan Aktif & Scroll Otomatis
-    document.querySelectorAll('li').forEach((li, i) => {
-        if (i === index) {
-            li.classList.add("active");
-            li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-            li.classList.remove("active");
-        }
-    });
-    startVisualizer();
+        // Reset audio sebelum putar yang baru
+        audio.pause();
+        audio.src = ""; 
+        audio.crossOrigin = "anonymous";
+        audio.src = songs[index].url;
+        
+        await audio.play(); // Menggunakan await untuk memastikan browser mengizinkan play
+        
+        document.querySelectorAll('li').forEach((li, i) => {
+            li.classList.toggle("active", i === index);
+            if (i === index) li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+
+        startVisualizer();
+    } catch (err) {
+        console.error("Play failed:", err);
+        songTitle.textContent = "Klik lagi untuk memutar...";
+    }
 }
 
 audio.onended = () => {
@@ -57,27 +67,31 @@ audio.onended = () => {
 
 function startVisualizer() {
     if (audioCtx) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    analyser = audioCtx.createAnalyser();
-    source = audioCtx.createMediaElementSource(audio);
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-    analyser.fftSize = 64;
-    const bufferLength = analyser.frequencyBinCount;
-    dataArray = new Uint8Array(bufferLength);
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        source = audioCtx.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        analyser.fftSize = 64;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
 
-    function draw() {
-        requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(dataArray);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let barWidth = (canvas.width / bufferLength) * 2.5;
-        let x = 0;
-        for (let i = 0; i < bufferLength; i++) {
-            let barHeight = dataArray[i] / 5;
-            ctx.fillStyle = "#ccff00";
-            ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
-            x += barWidth;
+        function draw() {
+            requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let barWidth = (canvas.width / bufferLength) * 2.5;
+            let x = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                let barHeight = dataArray[i] / 5;
+                ctx.fillStyle = "#ccff00";
+                ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+                x += barWidth;
+            }
         }
+        draw();
+    } catch (e) {
+        console.log("Visualizer blocked by browser");
     }
-    draw();
 }
