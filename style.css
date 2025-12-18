@@ -2,57 +2,54 @@ body {
     background-color: #000;
     color: #fff;
     font-family: sans-serif;
-    display: flex;
-    justify-content: center;
-    padding: 20px;
+    padding: 10px;
+    margin: 0;
+    overflow: hidden; /* Mencegah scroll di luar aplikasi antrian */
 }
 
 .player-container {
     width: 100%;
-    max-width: 400px;
-    text-align: center;
+    max-width: 320px; /* Ukuran kompak antrian */
+    margin: 0 auto;
+    border: 1px solid #ccff00;
+    border-radius: 8px;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
-h1 { color: #ccff00; font-size: 1.5rem; margin-bottom: 20px; }
+h1 { color: #ccff00; font-size: 14px; margin: 0 0 10px 0; text-align: center; }
 
-/* Styling Soundbar */
+/* Box Soundbar Ramping */
 .visualizer-box {
-    background: #111;
-    border: 2px solid #ccff00;
-    border-radius: 10px;
-    margin-bottom: 15px;
-    height: 100px;
-    overflow: hidden;
+    background: #000;
+    height: 60px; /* Tinggi dikurangi agar tidak makan tempat */
+    margin-bottom: 10px;
 }
 
-#visualizer {
-    width: 100%;
-    height: 100%;
-}
+#visualizer { width: 100%; height: 100%; }
 
+/* Menyembunyikan player default yang besar */
 audio {
     width: 100%;
-    margin-bottom: 20px;
-    filter: invert(100%) hue-rotate(90deg); /* Biar warnanya nyambung ke hijau neon */
+    height: 30px;
+    margin-bottom: 10px;
+    filter: invert(1) hue-rotate(90deg) brightness(1.5);
 }
 
 .playlist-wrapper {
-    text-align: left;
     background: #111;
-    border-radius: 10px;
-    padding: 10px;
-    max-height: 300px;
+    max-height: 150px; /* Batasi tinggi agar tetap di dalam layar antrian */
     overflow-y: auto;
 }
 
 ul { list-style: none; padding: 0; margin: 0; }
 
 li {
-    padding: 12px;
+    padding: 8px;
     border-bottom: 1px solid #222;
     cursor: pointer;
-    transition: 0.3s;
-    font-size: 14px;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-
-li:hover { background: #222; }
